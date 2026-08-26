@@ -1,0 +1,10 @@
+# Optional: a throwaway Postgres matching application.yml's defaults.   docker compose up -d
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: davkit_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"

@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:davkit;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+server:
+  ssl:
+    enabled: false
+
+davkit:
+  # Deliberately no key: the tests get their licence from TestLicenseConfiguration's LicenseGate
+  # bean, so a clone of this repo builds green without any key material in it.
+  auth:
+    ofba:
+      enabled: true
+  signed-url:
+    keys:
+      test: test-signing-key-0123456789abcdef0123456789

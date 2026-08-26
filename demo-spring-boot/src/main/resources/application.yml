@@ -1,0 +1,39 @@
+server:
+  port: 8443
+  ssl:
+    # Office trusts the OS store, not the browser's: generate with mkcert (see README).
+    key-store: file:${DEMO_KEYSTORE:demo-spring-boot/certs/localhost.p12}
+    key-store-type: PKCS12
+    key-store-password: ${DEMO_KEYSTORE_PASSWORD:changeit}
+
+spring:
+  datasource:
+    url: ${DEMO_DB_URL:jdbc:postgresql://localhost:5432/davkit_demo}
+    username: ${DEMO_DB_USER:postgres}
+    password: ${DEMO_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update   # demo only
+    open-in-view: false
+
+davkit:
+  path: /webdav
+  # No key ships with this demo. Put your own in DEMO_LICENSE_KEY (free evaluation keys:
+  # https://tucanoo.com/products/davkit). Without one the app boots normally and /webdav answers 503
+  # with the reason - everything outside DavKit still works.
+  license-key: ${DEMO_LICENSE_KEY:}
+  auth:
+    ofba:
+      enabled: true   # dialog flow: /davkit/ofba/start (protected) -> /login -> back -> /done
+  signed-url:
+    # Default auth (ADR-0005): every link on the page carries an 8 h HMAC token for the current
+    # user; requests under /webdav without one are refused. Override the key outside development.
+    keys:
+      demo: ${DEMO_SIGNING_KEY:demo-signing-key-change-me-0123456789abcdef}
+    ttl: 8h
+
+logging:
+  file:
+    name: demo.log
+  level:
+    com.tucanoo.davkit: DEBUG
