@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * {@code davkit.*} configuration. Skeleton only — surface agreed in docs/architecture.md,
+ * {@code davkit.*} configuration. Skeleton only — surface agreed in davkit-core's docs/architecture.md,
  * implementation lands in v0.1.
  */
 @ConfigurationProperties(prefix = "davkit")

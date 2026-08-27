@@ -55,9 +55,9 @@ import java.util.List;
  * <p>Security-chain split (Q7): the discovery filter is registered at order -101, one ahead of
  * Spring Security's filter (-100), so it answers Office's root probes before any redirect-to-login
  * can fire. The servlet under {@code davkit.path} must additionally sit outside the host's
- * security chain, or in a chain of its own without CSRF — see {@code docs/spring-boot-starter.md}.
- * That part cannot be done for the host without knowing its chain, so it is documented, not
- * assumed.</p>
+ * security chain, or in a chain of its own without CSRF; that part cannot be done for the host
+ * without knowing its chain, so it is documented, not assumed. See "Wiring the starter into a
+ * host" in this repository's README.</p>
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -278,7 +278,6 @@ public class DavKitAutoConfiguration {
     }
 
     /** Signed URLs (ADR-0005): on when at least one key is configured. */
-    /** Signed URLs (ADR-0005): on when at least one key is configured. */
     @Configuration(proxyBeanMethods = false)
     @Conditional(SignedUrlEnabledCondition.class)
     static class SignedUrlConfiguration {
@@ -388,7 +387,7 @@ public class DavKitAutoConfiguration {
                             ? "NONE (endpoints disabled, see the startup error)"
                             : licenseGate.license().licensee()
                                     + (licenseGate.license().evaluation() ? " (evaluation)" : ""))
-                    + " — set logging.level.com.tucanoo.davkit=DEBUG (or TRACE) for support logs");
+                    + ". Set logging.level.com.tucanoo.davkit=DEBUG (or TRACE) for support logs");
         };
     }
 

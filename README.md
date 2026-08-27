@@ -40,6 +40,24 @@ ways, automatically:
 - **Maven.** Otherwise the coordinate resolves normally. Until the core is published to Maven
   Central, that means `mavenLocal`, fed by `./gradlew publishToMavenLocal` in `davkit-core`.
 
+## Wiring the starter into a host
+
+Auto-configuration registers everything except the one thing that cannot be decided without
+seeing the host's security chain: **the servlet under `davkit.path` must sit outside that chain,
+or in a chain of its own with CSRF disabled.** Office does not send a CSRF token and will not
+follow a redirect to a login page, so a `davkit.path` left inside a form-login chain answers
+Word with a redirect and the document never opens.
+
+Two details the starter does handle, listed here because they look surprising in a filter dump:
+
+- `OfficeDiscoveryFilter` registers at order -101, one ahead of Spring Security's chain at -100,
+  so Office's root probes (`OPTIONS /`, `PROPFIND /`) are answered before any redirect can fire.
+- A `StrictHttpFirewall` bean is contributed when Spring Security is present and the host has not
+  defined its own. The default firewall allows seven HTTP methods and rejects `PROPFIND`, `LOCK`
+  and the rest with a 400 before any chain runs, so even a permit-all chain needs this.
+
+`demo-spring-boot`'s `SecurityConfig` shows the whole shape on a real host.
+
 ## Running the demo
 
 The demo serves HTTPS because Office trusts the OS certificate store, not the browser's. Generate

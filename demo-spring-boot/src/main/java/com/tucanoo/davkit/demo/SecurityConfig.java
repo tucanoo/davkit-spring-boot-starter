@@ -13,7 +13,8 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
- * The security shape a real host needs around DavKit (Q7, docs/spring-boot-starter.md):
+ * The security shape a real host needs around DavKit (Q7; see "Wiring the starter into a
+ * host" in the repository README):
  * <ol>
  *   <li>{@code /webdav/**} in its own chain: no CSRF (Office sends none), no redirect-to-login
  *       (Word reads a 302 as "not a WebDAV server", Q3). DavKit's own filter authenticates there

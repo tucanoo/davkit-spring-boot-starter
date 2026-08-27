@@ -10,7 +10,7 @@ dependencies {
     api("com.tucanoo.davkit:server:$version")
 
     // Compiled against Boot 3.x. Boot 4.x compatibility is verified by a separate test matrix
-    // (see docs/adr/0004-spring-boot-3-and-4.md); if packages diverge the starter is split.
+    // (see davkit-core's docs/adr/0004-spring-boot-3-and-4.md); if packages diverge the starter is split.
     compileOnly(libs.spring.boot.autoconfigure)
     compileOnly(libs.jakarta.servlet)
     // Only for the StrictHttpFirewall bean (Q8); guarded by @ConditionalOnClass, so hosts

@@ -24,14 +24,17 @@ There is no Office-specific code anywhere except the link scheme.
 v0.2 additions: form login (dave / password), **signed URLs** for every rendered link (the
 subject is the logged-in user), and **MS-OFBA** on plain `/webdav/...` URLs (the *via OFBA* link)
 using Spring Security's `/login` as the OFBA dialog page. `SecurityConfig` shows the chain split
-a real host needs (Q7) — including the `MvcRequestMatcher` trap documented in
-`docs/spring-boot-starter.md`. **No licence key ships with this demo** — supply your own via
-`DEMO_LICENSE_KEY` (see Run).
+a real host needs (Q7), including the `MvcRequestMatcher` trap; the repository README's "Wiring
+the starter into a host" covers the shape. **No licence key ships with this demo**: supply your
+own via `DEMO_LICENSE_KEY` (see Run).
 
 ## Run
 
-Needs Postgres and an HTTPS certificate Office trusts (it uses the OS store — see `spike/README.md`
-for the `mkcert` steps; the demo reuses `spike/certs/localhost.p12` by default).
+Needs Postgres and an HTTPS certificate Office trusts, because Office reads the OS store rather
+than the browser's. The `mkcert` command is in the repository README; it writes the keystore to
+`demo-spring-boot/certs/localhost.p12`, which is where this demo looks by default. `certs/` is
+gitignored, so a fresh clone has none until you generate one. `./gradlew build` does not need a
+certificate; only running the demo over TLS does.
 
 ```
 docker compose up -d          # or point DEMO_DB_URL / DEMO_DB_USER / DEMO_DB_PASSWORD at your own
@@ -52,15 +55,15 @@ top-up, so a database created by an older build gains any missing documents on r
 
 Env: `DEMO_DB_URL` (default `jdbc:postgresql://localhost:5432/davkit_demo`), `DEMO_DB_USER`,
 `DEMO_DB_PASSWORD` (both default `postgres`), `DEMO_KEYSTORE` (default
-`../spike/certs/localhost.p12`), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
+`demo-spring-boot/certs/localhost.p12`), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
 `DEMO_LICENSE_KEY` (no default), `DEMO_SIGNING_KEY` (signed-URL HMAC key; the default is a
-development placeholder — override it anywhere reachable by anyone else).
+development placeholder, so override it anywhere reachable by anyone else).
 
 The keystore default is relative to the working directory, which differs between
 `gradlew bootRun` (the module dir) and a typical IDE run configuration (the repo root), so when
 the configured file doesn't exist `DemoKeystoreLocator` walks up from the working directory
-looking for `spike/certs/localhost.p12` — running the main class straight from IntelliJ works
-without touching the run configuration.
+looking for `certs/localhost.p12` and `demo-spring-boot/certs/localhost.p12`. Running the main
+class straight from IntelliJ therefore works without touching the run configuration.
 
 ## Tests
 

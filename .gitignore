@@ -6,6 +6,8 @@ out/
 .DS_Store
 node_modules/
 *.log
+# Rotated Logback archives: demo.log.<date>.<n>.gz
+*.log.*
 .env
 certs/
 **/certs/
