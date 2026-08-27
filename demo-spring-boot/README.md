@@ -55,15 +55,14 @@ top-up, so a database created by an older build gains any missing documents on r
 
 Env: `DEMO_DB_URL` (default `jdbc:postgresql://localhost:5432/davkit_demo`), `DEMO_DB_USER`,
 `DEMO_DB_PASSWORD` (both default `postgres`), `DEMO_KEYSTORE` (default
-`demo-spring-boot/certs/localhost.p12`), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
+`certs/localhost.p12`, relative to this module), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
 `DEMO_LICENSE_KEY` (no default), `DEMO_SIGNING_KEY` (signed-URL HMAC key; the default is a
 development placeholder, so override it anywhere reachable by anyone else).
 
-The keystore default is relative to the working directory, which differs between
-`gradlew bootRun` (the module dir) and a typical IDE run configuration (the repo root), so when
-the configured file doesn't exist `DemoKeystoreLocator` walks up from the working directory
-looking for `certs/localhost.p12` and `demo-spring-boot/certs/localhost.p12`. Running the main
-class straight from IntelliJ therefore works without touching the run configuration.
+The keystore default is relative to the working directory, which is this module's directory
+under `gradlew :demo-spring-boot:bootRun`. Running the main class from an IDE usually starts in
+the repository root instead, so either set the run configuration's working directory to
+`demo-spring-boot` or point `DEMO_KEYSTORE` at the file.
 
 ## Tests
 
