@@ -32,9 +32,9 @@ own via `DEMO_LICENSE_KEY` (see Run).
 
 Needs Postgres and an HTTPS certificate Office trusts, because Office reads the OS store rather
 than the browser's. The `mkcert` command is in the repository README; it writes the keystore to
-`demo-spring-boot/certs/localhost.p12`, which is where this demo looks by default. `certs/` is
-gitignored, so a fresh clone has none until you generate one. `./gradlew build` does not need a
-certificate; only running the demo over TLS does.
+`src/main/resources/certs/localhost.p12`, which this demo loads as `classpath:certs/localhost.p12`.
+`certs/` is gitignored, so a fresh clone has none until you generate one. `./gradlew build` does
+not need a certificate; only running the demo over TLS does.
 
 ```
 docker compose up -d          # or point DEMO_DB_URL / DEMO_DB_USER / DEMO_DB_PASSWORD at your own
@@ -55,14 +55,14 @@ top-up, so a database created by an older build gains any missing documents on r
 
 Env: `DEMO_DB_URL` (default `jdbc:postgresql://localhost:5432/davkit_demo`), `DEMO_DB_USER`,
 `DEMO_DB_PASSWORD` (both default `postgres`), `DEMO_KEYSTORE` (default
-`certs/localhost.p12`, relative to this module), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
+`classpath:certs/localhost.p12`), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
 `DEMO_LICENSE_KEY` (no default), `DEMO_SIGNING_KEY` (signed-URL HMAC key; the default is a
 development placeholder, so override it anywhere reachable by anyone else).
 
-The keystore default is relative to the working directory, which is this module's directory
-under `gradlew :demo-spring-boot:bootRun`. Running the main class from an IDE usually starts in
-the repository root instead, so either set the run configuration's working directory to
-`demo-spring-boot` or point `DEMO_KEYSTORE` at the file.
+The keystore is a classpath location rather than a file path on purpose: `gradlew bootRun`
+starts in the module directory and an IDE run configuration usually starts in the repository
+root, and a relative file path cannot satisfy both. `DEMO_KEYSTORE` takes a full Spring resource
+location, so `file:/absolute/path.p12` works for a certificate kept outside the project.
 
 ## Tests
 

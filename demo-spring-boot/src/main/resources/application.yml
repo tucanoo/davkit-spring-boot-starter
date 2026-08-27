@@ -2,7 +2,9 @@ server:
   port: 8443
   ssl:
     # Office trusts the OS store, not the browser's: generate with mkcert (see README).
-    key-store: file:${DEMO_KEYSTORE:certs/localhost.p12}
+    # A classpath location rather than a file path, so it resolves the same under bootRun, an IDE
+    # run configuration and a built jar. Nothing depends on the working directory.
+    key-store: ${DEMO_KEYSTORE:classpath:certs/localhost.p12}
     key-store-type: PKCS12
     key-store-password: ${DEMO_KEYSTORE_PASSWORD:changeit}
 

@@ -65,10 +65,12 @@ a local certificate with [mkcert](https://github.com/FiloSottile/mkcert) and ins
 on the machine that will run Word:
 
 ```
-mkcert -pkcs12 -p12-file demo-spring-boot/certs/localhost.p12 localhost 127.0.0.1 ::1
+mkcert -pkcs12 -p12-file demo-spring-boot/src/main/resources/certs/localhost.p12 localhost 127.0.0.1 ::1
 ```
 
-Point `DEMO_KEYSTORE` elsewhere to use your own. The demo also needs a DavKit licence key in
+The demo loads it as `classpath:certs/localhost.p12`, so it resolves identically under
+`bootRun`, an IDE run configuration and a built jar. Point `DEMO_KEYSTORE` at any Spring resource
+location (`file:/path/to/your.p12`) to use your own. The demo also needs a DavKit licence key in
 `DEMO_LICENSE_KEY`; without one the application starts normally and the DavKit endpoints answer
 503 explaining why.
 
