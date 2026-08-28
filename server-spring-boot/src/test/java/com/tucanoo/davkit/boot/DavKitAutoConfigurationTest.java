@@ -5,15 +5,19 @@ import com.tucanoo.davkit.auth.BasicAuthenticator;
 import com.tucanoo.davkit.auth.DavAuthenticationFilter;
 import com.tucanoo.davkit.auth.SignedUrlKeys;
 import com.tucanoo.davkit.auth.SignedUrls;
-import com.tucanoo.davkit.license.License;
+import com.tucanoo.davkit.lock.InMemoryDavLockStore;
+import com.tucanoo.davkit.lock.LockService;
 import com.tucanoo.davkit.license.LicenseGate;
+import com.tucanoo.davkit.license.TestLicenseGates;
 import com.tucanoo.davkit.office.OfficeDiscoveryFilter;
 import com.tucanoo.davkit.protocol.DavServlet;
 import com.tucanoo.davkit.protocol.DavServletConfig;
 import com.tucanoo.davkit.protocol.ProviderRegistry;
 import com.tucanoo.davkit.spi.DavContent;
 import com.tucanoo.davkit.spi.DavContext;
+import com.tucanoo.davkit.spi.DavEventListener;
 import com.tucanoo.davkit.spi.DavPath;
+import com.tucanoo.davkit.spi.DavPermissions;
 import com.tucanoo.davkit.spi.DavPrincipal;
 import com.tucanoo.davkit.spi.DavResource;
 import com.tucanoo.davkit.spi.DavResourceProvider;
@@ -27,35 +31,111 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 
+import jakarta.servlet.Servlet;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DavKitAutoConfigurationTest {
 
-    private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
+    private final WebApplicationContextRunner disabledRunner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(DavKitAutoConfiguration.class));
+    private final WebApplicationContextRunner runner = disabledRunner
+            .withPropertyValues("davkit.enabled=true");
+
+    @Test
+    void disabledByDefaultDoesNotRegisterDavKitInfrastructure() {
+        disabledRunner.run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx).doesNotHaveBean(DavServlet.class);
+            assertThat(ctx).doesNotHaveBean(LicenseGate.class);
+            assertThat(ctx).doesNotHaveBean("davOfficeDiscoveryFilter");
+            assertThat(ctx).doesNotHaveBean(HttpFirewall.class);
+        });
+    }
+
+    @Test
+    void primaryHostLicenseGateDoesNotReplaceTheVerifiedDavKitGate() {
+        runner.withBean("hostLicenseGate", LicenseGate.class,
+                        () -> LicenseGate.unlicensed("host-supplied gate"), bean -> bean.setPrimary(true))
+                .run(ctx -> {
+                    assertThat(ctx).hasNotFailed();
+                    assertThat(ctx.getBean(DavServletConfig.class).licenseGate().startupProblem())
+                            .contains("no licence key")
+                            .doesNotContain("host-supplied");
+                });
+    }
+
+    @Test
+    void hostServletConfigCannotReplaceTheVerifiedGate() {
+        runner.withBean("hostDavServletConfig", DavServletConfig.class,
+                        DavKitAutoConfigurationTest::hostServletConfig, bean -> bean.setPrimary(true))
+                .run(ctx -> {
+                    assertThat(ctx).hasNotFailed();
+                    assertUsesCoreGate(ctx.getBean(DavServlet.class));
+                });
+    }
+
+    @Test
+    void primaryHostServletCannotReplaceTheRegisteredDavKitServlet() {
+        runner.withBean("hostDavServlet", DavServlet.class,
+                        DavKitAutoConfigurationTest::hostServlet, bean -> bean.setPrimary(true))
+                .run(ctx -> {
+                    assertThat(ctx).hasNotFailed();
+                    @SuppressWarnings("unchecked")
+                    ServletRegistrationBean<DavServlet> registration =
+                            (ServletRegistrationBean<DavServlet>) ctx.getBean("davServletRegistration");
+                    assertUsesCoreGate(registration.getServlet());
+                });
+    }
+
+    private static DavServletConfig hostServletConfig() {
+        return new DavServletConfig("/webdav", Duration.ofMinutes(5), Duration.ofHours(1), true, 256 * 1024,
+                LicenseGate.unlicensed("host-supplied gate"));
+    }
+
+    private static DavServlet hostServlet() {
+        return new DavServlet(new ProviderRegistry(List.of()), new LockService(new InMemoryDavLockStore()),
+                DavPrincipalResolver.anonymous(), List.of(), hostServletConfig());
+    }
+
+    private static void assertUsesCoreGate(DavServlet servlet) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/webdav/documents/example.docx");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        try {
+            ((Servlet) servlet).service(request, response);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(new String(response.getContentAsByteArray(), StandardCharsets.UTF_8))
+                .contains("no licence key").doesNotContain("host-supplied");
+    }
 
     /**
-     * The runner with a valid licence supplied as a bean rather than a key —
-     * {@code davLicenseGate} is {@code @ConditionalOnMissingBean}, so this replaces startup
-     * verification. Verification itself is covered by {@code LicenseVerifierTest} (its own key
-     * pair) and, end to end through {@code buildGate}, by {@link #STALE_LICENCE}.
+     * Adds a primary internal state built by test-source-only support. Tests select this
+     * controlled state only for downstream wiring assertions; core tests cover signature
+     * verification, expiry and update entitlement.
      */
     private WebApplicationContextRunner licensed() {
-        return runner.withBean(LicenseGate.class, () -> LicenseGate.of(
-                new License("Starter tests", License.Type.COMMERCIAL,
-                        LocalDate.of(2026, 1, 1), null, null, 1, List.of()),
-                null, Clock.systemUTC()));
+        return runner.withBean("testLicenseState", DavKitLicenseState.class,
+                () -> new DavKitLicenseState(TestLicenseGates.commercial("Starter tests")),
+                bean -> bean.setPrimary(true));
     }
 
     @Test
@@ -169,7 +249,7 @@ class DavKitAutoConfigurationTest {
     void noLicenceKeyBootsNormallyWithEndpointsDisabled() {
         runner.withPropertyValues("davkit.signed-url.keys.k1=0123456789abcdef0123456789abcdef").run(ctx -> {
             assertThat(ctx).hasNotFailed();
-            LicenseGate gate = ctx.getBean(LicenseGate.class);
+            LicenseGate gate = ctx.getBean(DavKitLicenseState.class).gate();
             assertThat(gate.startupProblem()).contains("no licence key");
             assertThat(ctx.getBean(DavServletConfig.class).licenseGate()).isSameAs(gate);
             @SuppressWarnings("unchecked")
@@ -183,7 +263,7 @@ class DavKitAutoConfigurationTest {
     void invalidLicenceKeyBootsNormallyWithEndpointsDisabled() {
         runner.withPropertyValues("davkit.license-key=eyJ4IjoxfQ.AAAA").run(ctx -> {
             assertThat(ctx).hasNotFailed();
-            assertThat(ctx.getBean(LicenseGate.class).startupProblem())
+            assertThat(ctx.getBean(DavKitLicenseState.class).gate().startupProblem())
                     .contains("signature");
         });
     }
@@ -193,7 +273,7 @@ class DavKitAutoConfigurationTest {
         // updatesUntil 2026-01-31; the build-info resource stamps this build well after that.
         runner.withPropertyValues("davkit.license-key=" + STALE_LICENCE).run(ctx -> {
             assertThat(ctx).hasNotFailed();
-            assertThat(ctx.getBean(LicenseGate.class).startupProblem())
+            assertThat(ctx.getBean(DavKitLicenseState.class).gate().startupProblem())
                     .contains("2026-01-31").contains("renew");
         });
     }
@@ -208,14 +288,78 @@ class DavKitAutoConfigurationTest {
     static final String STALE_LICENCE = "eyJsaWNlbnNlZSI6IlN0YWxlIEV4YW1wbGUgTHRkIiwidHlwZSI6ImNvbW1lcmNpYWwiLCJpc3N1ZWQiOiIyMDI1LTA2LTAxIiwidXBkYXRlc1VudGlsIjoiMjAyNi0wMS0zMSIsInNlcnZlcnMiOjF9.pANa-q9g_M2uJOtTWGWXRSuKeTk_0dm3BeVmWLfv61_qhEMoo2GvHUYySv0HQmn1pl9byW7kA_IP2la_e1vlBw";
 
     @Test
-    void signedUrlsOffByDefault() {
+    void unlicensedWithoutSignedUrlsKeepsAuthenticationFilterDisabled() {
         runner.run(ctx -> {
             assertThat(ctx).doesNotHaveBean(SignedUrlKeys.class);
             assertThat(ctx).doesNotHaveBean(SignedUrls.class);
             @SuppressWarnings("unchecked")
             FilterRegistrationBean<DavAuthenticationFilter> auth =
                     (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
-            assertThat(auth.isEnabled()).as("no authenticators, filter disabled").isFalse();
+            assertThat(auth.isEnabled()).as("no auth challenge in front of the licence 503").isFalse();
+        });
+    }
+
+    @Test
+    void requiredAuthenticationWithoutAuthenticatorsKeepsFilterEnabled() {
+        licensed().run(ctx -> {
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<DavAuthenticationFilter> auth =
+                    (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
+            assertThat(auth.isEnabled())
+                    .as("required authentication must fail closed when no authenticator is configured")
+                    .isTrue();
+        });
+    }
+
+    @Test
+    void hostSuppliedPrincipalResolverAuthenticatesRequiredRequest() {
+        licensed().withUserConfiguration(StatefulHostAuthentication.class).run(ctx -> {
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<DavAuthenticationFilter> registration =
+                    (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
+            DavServlet servlet = ctx.getBean(DavServlet.class);
+            StatefulHostIdentity identity = ctx.getBean(StatefulHostIdentity.class);
+            MockHttpServletRequest request = new MockHttpServletRequest(
+                    "GET", "/webdav/documents/example.docx");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            registration.getFilter().doFilter(request, response, servlet::service);
+
+            assertThat(response.getStatus()).isEqualTo(200);
+            assertThat(response.getContentAsString()).isEqualTo("content");
+            assertThat(identity.resolveCalls).hasValue(1);
+            assertThat(identity.principalSeen.get()).isNotNull();
+            assertThat(identity.principalSeen.get().id()).isEqualTo("host-user");
+        });
+    }
+
+    @Test
+    void expiredEvaluationKeepsAuthenticationFilterDisabledForLicenceRefusal() {
+        LicenseGate expired = TestLicenseGates.evaluation("Expired evaluation", LocalDate.of(2026, 8, 27),
+                Clock.fixed(Instant.parse("2026-08-28T12:00:00Z"), ZoneOffset.UTC));
+
+        runner.withBean("testLicenseState", DavKitLicenseState.class,
+                        () -> new DavKitLicenseState(expired), bean -> bean.setPrimary(true))
+                .withPropertyValues("davkit.auth.basic.enabled=true")
+                .run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(expired.refusal()).isPresent();
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<DavAuthenticationFilter> auth =
+                    (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
+            assertThat(auth.isEnabled()).as("the servlet must expose the licence 503").isFalse();
+        });
+    }
+
+    @Test
+    void optionalAuthenticationWithoutAuthenticatorsLeavesFilterDisabled() {
+        licensed().withPropertyValues("davkit.auth.required=false").run(ctx -> {
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<DavAuthenticationFilter> auth =
+                    (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
+            assertThat(auth.isEnabled())
+                    .as("anonymous development mode needs no empty authentication filter")
+                    .isFalse();
         });
     }
 
@@ -231,8 +375,7 @@ class DavKitAutoConfigurationTest {
         licensed().withUserConfiguration(Verifier.class)
                 .withPropertyValues("davkit.auth.basic.enabled=true")
                 .run(ctx -> {
-                    com.tucanoo.davkit.license.LicenseGate gate =
-                            ctx.getBean(LicenseGate.class);
+                    LicenseGate gate = ctx.getBean(DavKitLicenseState.class).gate();
                     assertThat(gate.startupProblem()).isNull();
                     assertThat(gate.license().licensee()).isEqualTo("Starter tests");
                     @SuppressWarnings("unchecked")
@@ -302,6 +445,44 @@ class DavKitAutoConfigurationTest {
     static class HostResolver {
         @Bean DavPrincipalResolver hostResolver() {
             return request -> new DavPrincipal("host-user", "Host User", java.util.Map.of());
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class StatefulHostAuthentication {
+        @Bean StatefulHostIdentity hostIdentity() { return new StatefulHostIdentity(); }
+        @Bean DavResourceProvider documentProvider() { return new SingleDocumentProvider(); }
+    }
+
+    static final class StatefulHostIdentity implements DavPrincipalResolver, DavEventListener {
+        private final AtomicInteger resolveCalls = new AtomicInteger();
+        private final AtomicReference<DavPrincipal> principalSeen = new AtomicReference<>();
+
+        @Override
+        public DavPrincipal resolve(jakarta.servlet.http.HttpServletRequest request) {
+            return resolveCalls.incrementAndGet() == 1
+                    ? new DavPrincipal("host-user", "Host User", java.util.Map.of())
+                    : DavPrincipal.ANONYMOUS;
+        }
+
+        @Override
+        public void afterRead(DavResource resource, DavContext ctx) {
+            principalSeen.set(ctx.principal());
+        }
+    }
+
+    private record SingleDocumentProvider() implements DavResourceProvider {
+        @Override public String mountPoint() { return "documents"; }
+        @Override public Optional<DavResource> resolve(DavPath path, DavContext ctx) {
+            return Optional.of(new DavResource("example", path, "example.docx", false,
+                    "application/octet-stream", 7, "v1", Instant.parse("2026-08-28T12:00:00Z"),
+                    Optional.empty(), DavPermissions.READ_ONLY));
+        }
+        @Override public DavContent read(DavResource resource, DavContext ctx) {
+            return DavContent.of("content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        @Override public DavResource write(DavResource resource, DavWriteRequest request, DavContext ctx) {
+            throw new UnsupportedOperationException();
         }
     }
 

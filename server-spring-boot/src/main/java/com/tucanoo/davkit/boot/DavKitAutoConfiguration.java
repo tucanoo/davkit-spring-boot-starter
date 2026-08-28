@@ -11,9 +11,7 @@ import com.tucanoo.davkit.auth.SignedUrlKeys;
 import com.tucanoo.davkit.auth.SignedUrls;
 import com.tucanoo.davkit.lock.DavLockStore;
 import com.tucanoo.davkit.lock.InMemoryDavLockStore;
-import com.tucanoo.davkit.license.BuildInfo;
 import com.tucanoo.davkit.license.LicenseGate;
-import com.tucanoo.davkit.license.LicenseVerifier;
 import com.tucanoo.davkit.lock.JdbcDavLockStore;
 import com.tucanoo.davkit.lock.LockService;
 import com.tucanoo.davkit.office.OfficeDiscoveryFilter;
@@ -21,9 +19,11 @@ import com.tucanoo.davkit.protocol.DavServlet;
 import com.tucanoo.davkit.protocol.DavServletConfig;
 import com.tucanoo.davkit.protocol.ProviderRegistry;
 import com.tucanoo.davkit.spi.DavEventListener;
+import com.tucanoo.davkit.spi.DavPrincipal;
 import com.tucanoo.davkit.spi.DavResourceProvider;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -61,6 +61,7 @@ import java.util.List;
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@ConditionalOnProperty(prefix = "davkit", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(DavKitProperties.class)
 public class DavKitAutoConfiguration {
 
@@ -78,31 +79,25 @@ public class DavKitAutoConfiguration {
      * explanation. CI runs and colleagues' machines without the key file must not fail, and
      * neither may a production host over licensing. Every valid key grants the whole library —
      * there is no per-feature gating (licensing.md, decided 2026-08-26).
-     */
+    */
     @Bean
-    @ConditionalOnMissingBean
-    LicenseGate davLicenseGate(DavKitProperties properties) {
+    DavKitLicenseState davKitLicenseState(DavKitProperties properties) {
         LicenseGate gate = buildGate(properties);
         if (gate.startupProblem() != null) {
             LOG.error(gate.summary());
+        } else if (gate.refusal().isPresent()) {
+            LOG.error("DavKit is not licensed: " + gate.refusal().orElseThrow()
+                    + ". The host application is unaffected; DavKit endpoints return 503.");
         } else if (gate.license().evaluation()) {
             LOG.warn(gate.summary()); // the evaluation banner
         } else {
             LOG.info(gate.summary());
         }
-        return gate;
+        return new DavKitLicenseState(gate);
     }
 
     private static LicenseGate buildGate(DavKitProperties properties) {
-        String key = properties.getLicenseKey();
-        if (key == null || key.isBlank()) {
-            return LicenseGate.unlicensed("no licence key is configured (davkit.license-key)");
-        }
-        try {
-            return LicenseGate.of(new LicenseVerifier().verify(key), BuildInfo.date(), Clock.systemUTC());
-        } catch (LicenseVerifier.LicenseException e) {
-            return LicenseGate.unlicensed(e.getMessage());
-        }
+        return LicenseGate.fromKey(properties.getLicenseKey());
     }
 
     @Bean
@@ -144,18 +139,23 @@ public class DavKitAutoConfiguration {
     }
 
     /**
-     * Principals established by DavKit's own authenticators (signed URLs now; OFBA/Basic later)
-     * win; anything else is anonymous. The anonymous warning fires only when anonymous requests
-     * can actually reach the servlet — i.e. signed URLs are off or not {@code required}.
+     * Principals established by DavKit's own authenticators win; unmatched requests are anonymous
+     * only when authentication is not {@code required}.
      */
     @Bean
     @ConditionalOnMissingBean
-    DavPrincipalResolver davPrincipalResolver(DavKitProperties properties) {
-        if (!hasAuthenticators(properties) || !properties.getAuth().isRequired()) {
-            LOG.warn("DavKit will treat requests without a DavKit-authenticated principal as anonymous: "
-                    + "every document is reachable by anyone who can reach this server. Suitable for local "
-                    + "development only; configure davkit.signed-url.keys / davkit.auth.* (required=true) "
-                    + "or provide a DavPrincipalResolver bean before exposing this host.");
+    DavPrincipalResolver davPrincipalResolver(DavKitProperties properties, DavKitLicenseState licenseState) {
+        LicenseGate licenseGate = licenseState.gate();
+        if (licenseGate.refusal().isEmpty()) {
+            if (!properties.getAuth().isRequired()) {
+                LOG.warn("DavKit will treat requests without a DavKit-authenticated principal as anonymous: "
+                        + "every document is reachable by anyone who can reach this server. Suitable for local "
+                        + "development only; configure davkit.signed-url.keys / davkit.auth.* (required=true) "
+                        + "or provide a DavPrincipalResolver bean before exposing this host.");
+            } else if (!hasAuthenticators(properties)) {
+                LOG.warn("DavKit authentication is required but no authenticator is configured; "
+                        + "all requests to the WebDAV endpoint will be refused with 403.");
+            }
         }
         return DavPrincipalResolver.fromRequestAttribute(DavPrincipalResolver.anonymous());
     }
@@ -168,9 +168,9 @@ public class DavKitAutoConfiguration {
 
     /**
      * DavKit's authentication chain (auth-strategies.md "Ordering and composition"): signed URLs,
-     * then OFBA, then Basic; first success wins, then challenges in the same order. When the gate
-     * was refused at startup no authenticator is registered at all, so requests fall through to
-     * the servlet's 503 explanation instead of dying on a 401/403 challenge. (An evaluation key
+     * then OFBA, then Basic, then the host's principal resolver; first success wins, then
+     * challenges in the same order. When the gate is refused at startup the registration is
+     * disabled, so requests fall through to the servlet's 503 explanation. (An evaluation key
      * that expires while the process runs keeps its authenticators; an authenticated request then
      * still gets the servlet's 503, which is the answer we want in front of the evaluator.)
      * Missing collaborator beans for an enabled feature remain hard startup failures — that is a
@@ -179,13 +179,15 @@ public class DavKitAutoConfiguration {
     @Bean
     FilterRegistrationBean<DavAuthenticationFilter> davAuthenticationFilter(
             DavKitProperties properties,
-            LicenseGate licenseGate,
+            DavKitLicenseState licenseState,
             ObjectProvider<SignedUrlKeys> signedUrlKeys,
             ObjectProvider<OfbaSessionResolver> ofbaSessionResolver,
-            ObjectProvider<BasicAuthenticator.CredentialsVerifier> credentialsVerifier) {
+            ObjectProvider<BasicAuthenticator.CredentialsVerifier> credentialsVerifier,
+            DavPrincipalResolver principalResolver) {
+        LicenseGate licenseGate = licenseState.gate();
         List<DavAuthenticator> authenticators = new ArrayList<>();
         DavKitProperties.Auth auth = properties.getAuth();
-        if (licenseGate.startupProblem() == null) {
+        if (licenseGate.refusal().isEmpty()) {
             if (properties.getSignedUrl().isEnabled()) {
                 authenticators.add(new SignedUrlAuthenticator(davPath(properties),
                         signedUrlKeys.getObject(), Clock.systemUTC()));
@@ -209,13 +211,25 @@ public class DavKitAutoConfiguration {
                         auth.getBasic().isAllowInsecure()));
             }
         }
+        boolean hasConfiguredAuthenticator = !authenticators.isEmpty();
+        if (auth.isRequired()) {
+            // A host resolver is a supported authentication boundary. Run it last so DavKit's
+            // explicit credentials win, while anonymous/null resolver outcomes still fail closed.
+            authenticators.add(request -> {
+                DavPrincipal principal = principalResolver.resolve(request);
+                return principal == null || principal.isAnonymous()
+                        ? DavAuthenticator.Outcome.notApplicable()
+                        : DavAuthenticator.Outcome.success(principal, request);
+            });
+        }
         DavAuthenticationFilter filter =
                 new DavAuthenticationFilter(davPath(properties), authenticators, auth.isRequired());
         FilterRegistrationBean<DavAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setName("davkitAuth");
         registration.addUrlPatterns(davPath(properties) + "/*");
         registration.setOrder(AUTH_FILTER_ORDER);
-        registration.setEnabled(!authenticators.isEmpty());
+        registration.setEnabled(licenseGate.refusal().isEmpty()
+                && (auth.isRequired() || hasConfiguredAuthenticator));
         return registration;
     }
 
@@ -299,25 +313,36 @@ public class DavKitAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    DavServletConfig davServletConfig(DavKitProperties properties, LicenseGate licenseGate) {
+    DavServletConfig davServletConfig(DavKitProperties properties, DavKitLicenseState licenseState) {
         DavKitProperties.Lock lock = properties.getLock();
         // rangeSupport and maxControlBodyBytes keep the record's defaults; no property until needed.
         return new DavServletConfig(davPath(properties), lock.getDefaultTimeout(), lock.getMaxTimeout(), true, 0,
-                licenseGate);
+                licenseState.gate());
     }
 
-    @Bean
-    @ConditionalOnMissingBean
+    @Bean("davKitServlet")
     DavServlet davServlet(ProviderRegistry registry,
                           LockService lockService,
                           DavPrincipalResolver principalResolver,
                           ObjectProvider<DavEventListener> listeners,
-                          DavServletConfig config) {
-        return new DavServlet(registry, lockService, principalResolver, listeners.orderedStream().toList(), config);
+                          DavServletConfig config,
+                          DavKitLicenseState licenseState) {
+        DavServletConfig verifiedConfig = new DavServletConfig(
+                config.path(),
+                config.defaultLockTimeout(),
+                config.maxLockTimeout(),
+                config.rangeSupport(),
+                config.maxControlBodyBytes(),
+                licenseState.gate());
+        return new DavServlet(registry, lockService,
+                DavPrincipalResolver.fromRequestAttribute(principalResolver),
+                listeners.orderedStream().toList(), verifiedConfig);
     }
 
     @Bean
-    ServletRegistrationBean<DavServlet> davServletRegistration(DavServlet servlet, DavKitProperties properties) {
+    ServletRegistrationBean<DavServlet> davServletRegistration(
+            @Qualifier("davKitServlet") DavServlet servlet,
+            DavKitProperties properties) {
         ServletRegistrationBean<DavServlet> registration =
                 new ServletRegistrationBean<>(servlet, davPath(properties) + "/*");
         registration.setName("davkit");
@@ -365,8 +390,9 @@ public class DavKitAutoConfiguration {
      */
     @Bean
     ApplicationRunner davKitStartupSummary(DavKitProperties properties, ProviderRegistry registry,
-                                           DavLockStore lockStore, LicenseGate licenseGate) {
+                                           DavLockStore lockStore, DavKitLicenseState licenseState) {
         return args -> {
+            LicenseGate licenseGate = licenseState.gate();
             DavKitProperties.Auth auth = properties.getAuth();
             List<String> authenticators = new ArrayList<>();
             if (properties.getSignedUrl().isEnabled()) {
@@ -378,12 +404,19 @@ public class DavKitAutoConfiguration {
             if (auth.getBasic().isEnabled()) {
                 authenticators.add("basic");
             }
+            String authSummary = licenseGate.refusal().isPresent()
+                    ? "inactive (licence refused)"
+                    : authenticators.isEmpty()
+                            ? (auth.isRequired()
+                                    ? "principal-resolver fallback (anonymous refused)"
+                                    : "none (anonymous)")
+                            : authenticators.toString();
             LOG.info("DavKit ready: path=" + davPath(properties)
                     + " mounts=" + registry.mountPointNames()
-                    + " auth=" + (authenticators.isEmpty() ? "none (anonymous)" : authenticators)
+                    + " auth=" + authSummary
                     + " required=" + auth.isRequired()
                     + " lockStore=" + lockStore.getClass().getSimpleName()
-                    + " licence=" + (licenseGate.startupProblem() != null
+                    + " licence=" + (licenseGate.refusal().isPresent()
                             ? "NONE (endpoints disabled, see the startup error)"
                             : licenseGate.license().licensee()
                                     + (licenseGate.license().evaluation() ? " (evaluation)" : ""))

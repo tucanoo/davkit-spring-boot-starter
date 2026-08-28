@@ -13,8 +13,9 @@ server:
     enabled: false
 
 davkit:
-  # Deliberately no key: the tests get their licence from TestLicenseConfiguration's LicenseGate
-  # bean, so a clone of this repo builds green without any key material in it.
+  enabled: true
+  # Deliberately no key: unpublished test-source support supplies the test context's internal state,
+  # so a clone builds green without reusable key material or a production bypass.
   auth:
     ofba:
       enabled: true

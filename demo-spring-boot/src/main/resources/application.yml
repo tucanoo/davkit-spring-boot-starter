@@ -19,6 +19,7 @@ spring:
     open-in-view: false
 
 davkit:
+  enabled: true
   path: /webdav
   # No key ships with this demo. Put your own in DEMO_LICENSE_KEY (free evaluation keys:
   # https://tucanoo.com/products/davkit). Without one the app boots normally and /webdav answers 503

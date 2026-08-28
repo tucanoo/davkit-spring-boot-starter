@@ -42,6 +42,14 @@ ways, automatically:
 
 ## Wiring the starter into a host
 
+DavKit is explicitly opt-in. Adding the dependency alone registers nothing; enable it only in an
+application that intends to expose the WebDAV endpoint:
+
+```yaml
+davkit:
+  enabled: true
+```
+
 Auto-configuration registers everything except the one thing that cannot be decided without
 seeing the host's security chain: **the servlet under `davkit.path` must sit outside that chain,
 or in a chain of its own with CSRF disabled.** Office does not send a CSRF token and will not
@@ -57,6 +65,24 @@ Two details the starter does handle, listed here because they look surprising in
   and the rest with a 400 before any chain runs, so even a permit-all chain needs this.
 
 `demo-spring-boot`'s `SecurityConfig` shows the whole shape on a real host.
+
+### Authentication defaults
+
+`davkit.auth.required` defaults to `true`. Signed URLs, OFBA and Basic run first, followed by any
+host-supplied `DavPrincipalResolver`. If none establishes a non-anonymous principal, the starter
+returns a bare 403; installing the starter with no authentication strategy therefore fails
+closed. Set `davkit.auth.required=false` only for deliberate anonymous development access.
+
+An absent, invalid or already-expired licence remains a separate condition: authentication stays
+out of the way so the DavKit servlet can return its explanatory licence 503.
+
+### Licence authority
+
+The starter passes the raw `davkit.license-key` value to the proprietary core. The core verifies
+the embedded Ed25519 product signature and creates the runtime gate; the open-source wrapper does
+not verify keys or manufacture approved state. `LicenseGate` is therefore not a host extension
+point. Supplying another gate, servlet configuration, or servlet bean does not replace DavKit's
+verified gate. A custom `DavServletConfig` may still change its documented non-licensing settings.
 
 ## Running the demo
 

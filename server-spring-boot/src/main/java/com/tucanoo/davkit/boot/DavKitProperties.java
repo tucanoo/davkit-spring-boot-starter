@@ -13,6 +13,9 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "davkit")
 public class DavKitProperties {
 
+    /** Enable DavKit's servlet, filters and supporting infrastructure. Explicit opt-in. */
+    private boolean enabled = false;
+
     /** Servlet mapping for the WebDAV endpoint. Office discovery requests are intercepted at the context root regardless. */
     private String path = "/webdav";
 
@@ -142,6 +145,8 @@ public class DavKitProperties {
 
     public String getPath() { return path; }
     public void setPath(String path) { this.path = path; }
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public String getLicenseKey() { return licenseKey; }
     public void setLicenseKey(String licenseKey) { this.licenseKey = licenseKey; }
     public Lock getLock() { return lock; }
