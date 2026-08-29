@@ -13,8 +13,8 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "davkit")
 public class DavKitProperties {
 
-    /** Enable DavKit's servlet, filters and supporting infrastructure. Explicit opt-in. */
-    private boolean enabled = false;
+    /** Enable DavKit's servlet, filters and supporting infrastructure. */
+    private boolean enabled = true;
 
     /** Servlet mapping for the WebDAV endpoint. Office discovery requests are intercepted at the context root regardless. */
     private String path = "/webdav";
@@ -65,18 +65,14 @@ public class DavKitProperties {
         public void setSharePointStubs(boolean sharePointStubs) { this.sharePointStubs = sharePointStubs; }
     }
 
-    /**
-     * Signed expiring URLs (ADR-0005, auth-strategies.md §1). Enabled by configuring at least one
-     * key: {@code davkit.signed-url.keys.<id>=<secret of 32+ chars>}.
-     */
+    /** Signed expiring URLs (ADR-0005, auth-strategies.md §1). */
     public static class SignedUrl {
-        /** Key id → secret. Several keys verify at once so keys can be rotated. */
+        /** Optional key id → secret override. By default DavKit derives a key from the licence. */
         private Map<String, String> keys = new LinkedHashMap<>();
         /** Key id used to mint new tokens; defaults to the first configured key. */
         private String activeKey;
         /** Validity of minted tokens. Must cover an editing session, not just the open. */
         private Duration ttl = Duration.ofHours(8);
-        public boolean isEnabled() { return keys != null && !keys.isEmpty(); }
         public Map<String, String> getKeys() { return keys; }
         public void setKeys(Map<String, String> keys) { this.keys = keys; }
         public String getActiveKey() { return activeKey; }

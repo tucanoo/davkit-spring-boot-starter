@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Exercises the registered filter through a real servlet container, not a mock filter chain. */
 @SpringBootTest(
         classes = DavKitFailClosedAuthenticationTest.TestApplication.class,
-        properties = "davkit.enabled=true",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class DavKitFailClosedAuthenticationTest {
 

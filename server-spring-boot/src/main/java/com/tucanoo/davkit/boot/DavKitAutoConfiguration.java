@@ -35,16 +35,20 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.util.ClassUtils;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Wires the framework-free core into a Spring Boot application. Everything here is plain
@@ -61,7 +65,7 @@ import java.util.List;
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnProperty(prefix = "davkit", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "davkit", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(DavKitProperties.class)
 public class DavKitAutoConfiguration {
 
@@ -150,20 +154,11 @@ public class DavKitAutoConfiguration {
             if (!properties.getAuth().isRequired()) {
                 LOG.warn("DavKit will treat requests without a DavKit-authenticated principal as anonymous: "
                         + "every document is reachable by anyone who can reach this server. Suitable for local "
-                        + "development only; configure davkit.signed-url.keys / davkit.auth.* (required=true) "
+                        + "development only; set davkit.auth.required=true "
                         + "or provide a DavPrincipalResolver bean before exposing this host.");
-            } else if (!hasAuthenticators(properties)) {
-                LOG.warn("DavKit authentication is required but no authenticator is configured; "
-                        + "all requests to the WebDAV endpoint will be refused with 403.");
             }
         }
         return DavPrincipalResolver.fromRequestAttribute(DavPrincipalResolver.anonymous());
-    }
-
-    private static boolean hasAuthenticators(DavKitProperties properties) {
-        return properties.getSignedUrl().isEnabled()
-                || properties.getAuth().getBasic().isEnabled()
-                || properties.getAuth().getOfba().isEnabled();
     }
 
     /**
@@ -188,10 +183,8 @@ public class DavKitAutoConfiguration {
         List<DavAuthenticator> authenticators = new ArrayList<>();
         DavKitProperties.Auth auth = properties.getAuth();
         if (licenseGate.refusal().isEmpty()) {
-            if (properties.getSignedUrl().isEnabled()) {
-                authenticators.add(new SignedUrlAuthenticator(davPath(properties),
-                        signedUrlKeys.getObject(), Clock.systemUTC()));
-            }
+            authenticators.add(new SignedUrlAuthenticator(davPath(properties),
+                    signedUrlKeys.getObject(), Clock.systemUTC()));
             if (auth.getOfba().isEnabled()) {
                 OfbaSessionResolver session = ofbaSessionResolver.getIfAvailable();
                 if (session == null) {
@@ -291,15 +284,18 @@ public class DavKitAutoConfiguration {
         return registration;
     }
 
-    /** Signed URLs (ADR-0005): on when at least one key is configured. */
+    /** Signed URLs (ADR-0005): licence-derived by default, with optional configured keys. */
     @Configuration(proxyBeanMethods = false)
-    @Conditional(SignedUrlEnabledCondition.class)
     static class SignedUrlConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
         SignedUrlKeys davSignedUrlKeys(DavKitProperties properties) {
-            return new SignedUrlKeys(properties.getSignedUrl().getKeys(), properties.getSignedUrl().getActiveKey());
+            Map<String, String> configured = properties.getSignedUrl().getKeys();
+            if (configured != null && !configured.isEmpty()) {
+                return new SignedUrlKeys(configured, properties.getSignedUrl().getActiveKey());
+            }
+            return derivedSigningKeys(properties.getLicenseKey());
         }
 
         /** Inject this where you render "Edit in Word" links. */
@@ -309,6 +305,26 @@ public class DavKitAutoConfiguration {
             return new SignedUrls(davPath(properties), keys, properties.getSignedUrl().getTtl(), Clock.systemUTC());
         }
 
+    }
+
+    /**
+     * Derive a purpose-specific signing secret without exposing the licence as HMAC material.
+     * Licence verification trims surrounding whitespace, so derivation does the same to keep
+     * equivalent configuration stable across nodes. This also returns a deterministic value for
+     * a missing licence so unlicensed applications can finish booting; the refused licence gate
+     * disables authentication and the servlet answers 503, so that value grants no access.
+     */
+    private static SignedUrlKeys derivedSigningKeys(String rawLicenceKey) {
+        String material = rawLicenceKey == null ? "" : rawLicenceKey.trim();
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update("com.tucanoo.davkit/signed-url/v1\0".getBytes(StandardCharsets.UTF_8));
+            byte[] secret = digest.digest(material.getBytes(StandardCharsets.UTF_8));
+            return SignedUrlKeys.single("licence",
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(secret));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
     }
 
     @Bean
@@ -395,9 +411,7 @@ public class DavKitAutoConfiguration {
             LicenseGate licenseGate = licenseState.gate();
             DavKitProperties.Auth auth = properties.getAuth();
             List<String> authenticators = new ArrayList<>();
-            if (properties.getSignedUrl().isEnabled()) {
-                authenticators.add("signed-url(ttl=" + properties.getSignedUrl().getTtl() + ")");
-            }
+            authenticators.add("signed-url(ttl=" + properties.getSignedUrl().getTtl() + ")");
             if (auth.getOfba().isEnabled()) {
                 authenticators.add("ofba");
             }

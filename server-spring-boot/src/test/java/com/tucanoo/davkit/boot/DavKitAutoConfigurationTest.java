@@ -3,6 +3,7 @@ package com.tucanoo.davkit.boot;
 import com.tucanoo.davkit.auth.DavPrincipalResolver;
 import com.tucanoo.davkit.auth.BasicAuthenticator;
 import com.tucanoo.davkit.auth.DavAuthenticationFilter;
+import com.tucanoo.davkit.auth.SignedUrlAuthenticator;
 import com.tucanoo.davkit.auth.SignedUrlKeys;
 import com.tucanoo.davkit.auth.SignedUrls;
 import com.tucanoo.davkit.lock.InMemoryDavLockStore;
@@ -30,6 +31,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.web.firewall.HttpFirewall;
@@ -44,6 +46,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,17 +56,27 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DavKitAutoConfigurationTest {
 
-    private final WebApplicationContextRunner disabledRunner = new WebApplicationContextRunner()
+    private final WebApplicationContextRunner baseRunner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(DavKitAutoConfiguration.class));
-    private final WebApplicationContextRunner runner = disabledRunner
-            .withPropertyValues("davkit.enabled=true");
+    private final WebApplicationContextRunner runner = baseRunner;
+    private final WebApplicationContextRunner disabledRunner = baseRunner
+            .withPropertyValues("davkit.enabled=false");
 
     @Test
-    void disabledByDefaultDoesNotRegisterDavKitInfrastructure() {
+    void enabledByDefaultRegistersDavKitInfrastructure() {
+        baseRunner.run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx).hasSingleBean(DavServlet.class);
+            assertThat(ctx).hasSingleBean(DavKitLicenseState.class);
+        });
+    }
+
+    @Test
+    void explicitlyDisabledDoesNotRegisterDavKitInfrastructure() {
         disabledRunner.run(ctx -> {
             assertThat(ctx).hasNotFailed();
             assertThat(ctx).doesNotHaveBean(DavServlet.class);
-            assertThat(ctx).doesNotHaveBean(LicenseGate.class);
+            assertThat(ctx).doesNotHaveBean(DavKitLicenseState.class);
             assertThat(ctx).doesNotHaveBean("davOfficeDiscoveryFilter");
             assertThat(ctx).doesNotHaveBean(HttpFirewall.class);
         });
@@ -133,6 +146,18 @@ class DavKitAutoConfigurationTest {
      * verification, expiry and update entitlement.
      */
     private WebApplicationContextRunner licensed() {
+        return licensed("test-only-licence-material-for-derived-signing");
+    }
+
+    private WebApplicationContextRunner licensed(String rawKey) {
+        return runner.withInitializer(context -> context.getEnvironment().getPropertySources().addFirst(
+                        new MapPropertySource("raw-test-licence", Map.of("davkit.license-key", rawKey))))
+                .withBean("testLicenseState", DavKitLicenseState.class,
+                () -> new DavKitLicenseState(TestLicenseGates.commercial("Starter tests")),
+                bean -> bean.setPrimary(true));
+    }
+
+    private WebApplicationContextRunner licensedWithoutRawKey() {
         return runner.withBean("testLicenseState", DavKitLicenseState.class,
                 () -> new DavKitLicenseState(TestLicenseGates.commercial("Starter tests")),
                 bean -> bean.setPrimary(true));
@@ -288,10 +313,10 @@ class DavKitAutoConfigurationTest {
     static final String STALE_LICENCE = "eyJsaWNlbnNlZSI6IlN0YWxlIEV4YW1wbGUgTHRkIiwidHlwZSI6ImNvbW1lcmNpYWwiLCJpc3N1ZWQiOiIyMDI1LTA2LTAxIiwidXBkYXRlc1VudGlsIjoiMjAyNi0wMS0zMSIsInNlcnZlcnMiOjF9.pANa-q9g_M2uJOtTWGWXRSuKeTk_0dm3BeVmWLfv61_qhEMoo2GvHUYySv0HQmn1pl9byW7kA_IP2la_e1vlBw";
 
     @Test
-    void unlicensedWithoutSignedUrlsKeepsAuthenticationFilterDisabled() {
+    void unlicensedHostKeepsAuthenticationFilterDisabled() {
         runner.run(ctx -> {
-            assertThat(ctx).doesNotHaveBean(SignedUrlKeys.class);
-            assertThat(ctx).doesNotHaveBean(SignedUrls.class);
+            assertThat(ctx).hasSingleBean(SignedUrlKeys.class);
+            assertThat(ctx).hasSingleBean(SignedUrls.class);
             @SuppressWarnings("unchecked")
             FilterRegistrationBean<DavAuthenticationFilter> auth =
                     (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
@@ -300,14 +325,46 @@ class DavKitAutoConfigurationTest {
     }
 
     @Test
-    void requiredAuthenticationWithoutAuthenticatorsKeepsFilterEnabled() {
-        licensed().run(ctx -> {
+    void requiredAuthenticationKeepsFilterEnabledForUnsignedRequests() {
+        licensedWithoutRawKey().run(ctx -> {
             @SuppressWarnings("unchecked")
             FilterRegistrationBean<DavAuthenticationFilter> auth =
                     (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
             assertThat(auth.isEnabled())
                     .as("required authentication must fail closed when no authenticator is configured")
                     .isTrue();
+        });
+    }
+
+    @Test
+    void equivalentWhitespacePaddedLicenceDerivesSameSigningKey() {
+        AtomicReference<String> signedPath = new AtomicReference<>();
+        licensed().run(ctx -> signedPath.set(
+                ctx.getBean(SignedUrls.class).path("alice", "documents/report.docx")));
+
+        licensed("  test-only-licence-material-for-derived-signing  ").run(ctx -> {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", signedPath.get());
+            var outcome = new SignedUrlAuthenticator("/webdav", ctx.getBean(SignedUrlKeys.class), Clock.systemUTC())
+                    .authenticate(request);
+
+            assertThat(outcome.succeeded()).isTrue();
+            assertThat(outcome.principal().orElseThrow().id()).isEqualTo("alice");
+            assertThat(ctx.getBean(SignedUrls.class).ttl()).isEqualTo(Duration.ofHours(8));
+        });
+    }
+
+    @Test
+    void differentLicenceCannotVerifyDerivedSignedUrl() {
+        AtomicReference<String> signedPath = new AtomicReference<>();
+        licensed("first-test-licence-material").run(ctx -> signedPath.set(
+                ctx.getBean(SignedUrls.class).path("alice", "documents/report.docx")));
+
+        licensed("second-test-licence-material").run(ctx -> {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", signedPath.get());
+            var outcome = new SignedUrlAuthenticator("/webdav", ctx.getBean(SignedUrlKeys.class), Clock.systemUTC())
+                    .authenticate(request);
+
+            assertThat(outcome.rejected()).isTrue();
         });
     }
 
@@ -352,14 +409,14 @@ class DavKitAutoConfigurationTest {
     }
 
     @Test
-    void optionalAuthenticationWithoutAuthenticatorsLeavesFilterDisabled() {
+    void optionalAuthenticationKeepsSignedUrlFilterEnabled() {
         licensed().withPropertyValues("davkit.auth.required=false").run(ctx -> {
             @SuppressWarnings("unchecked")
             FilterRegistrationBean<DavAuthenticationFilter> auth =
                     (FilterRegistrationBean<DavAuthenticationFilter>) ctx.getBean("davAuthenticationFilter");
             assertThat(auth.isEnabled())
-                    .as("anonymous development mode needs no empty authentication filter")
-                    .isFalse();
+                    .as("signed URLs must still establish their embedded principal")
+                    .isTrue();
         });
     }
 
@@ -405,7 +462,7 @@ class DavKitAutoConfigurationTest {
     }
 
     @Test
-    void signedUrlsOnWhenAKeyIsConfigured() {
+    void configuredSigningKeysOverrideLicenceDerivedKey() {
         licensed().withPropertyValues(
                         "davkit.signed-url.keys.k1=0123456789abcdef0123456789abcdef",
                         "davkit.signed-url.keys.k2=fedcba9876543210fedcba9876543210",

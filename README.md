@@ -42,13 +42,15 @@ ways, automatically:
 
 ## Wiring the starter into a host
 
-DavKit is explicitly opt-in. Adding the dependency alone registers nothing; enable it only in an
-application that intends to expose the WebDAV endpoint:
+Adding the starter enables DavKit by default. A valid licence is the only signing material needed:
 
 ```yaml
 davkit:
-  enabled: true
+  license-key: ${DAVKIT_LICENSE_KEY}
 ```
+
+Set `davkit.enabled=false` to disable all DavKit servlet, filter, firewall and supporting-bean
+registration without removing the dependency.
 
 Auto-configuration registers everything except the one thing that cannot be decided without
 seeing the host's security chain: **the servlet under `davkit.path` must sit outside that chain,
@@ -68,13 +70,17 @@ Two details the starter does handle, listed here because they look surprising in
 
 ### Authentication defaults
 
-`davkit.auth.required` defaults to `true`. Signed URLs, OFBA and Basic run first, followed by any
-host-supplied `DavPrincipalResolver`. If none establishes a non-anonymous principal, the starter
-returns a bare 403; installing the starter with no authentication strategy therefore fails
-closed. Set `davkit.auth.required=false` only for deliberate anonymous development access.
+`davkit.auth.required` defaults to `true`. Signed URLs are available automatically: their key is
+derived from the validated licence and their default lifetime is eight hours. OFBA and Basic run
+after signed URLs, followed by any host-supplied `DavPrincipalResolver`. If none establishes a
+non-anonymous principal, the starter returns a bare 403. Set `davkit.auth.required=false` only for
+deliberate anonymous development access.
 
 An absent, invalid or already-expired licence remains a separate condition: authentication stays
 out of the way so the DavKit servlet can return its explanatory licence 503.
+
+Installations using the same OEM licence derive the same signing key. When those installations
+are separate trust boundaries, configure a distinct `davkit.signed-url.keys` map in each one.
 
 ### Licence authority
 
@@ -83,6 +89,13 @@ the embedded Ed25519 product signature and creates the runtime gate; the open-so
 not verify keys or manufacture approved state. `LicenseGate` is therefore not a host extension
 point. Supplying another gate, servlet configuration, or servlet bean does not replace DavKit's
 verified gate. A custom `DavServletConfig` may still change its documented non-licensing settings.
+
+### Deployment
+
+Deploy the host application at the container's root context. Office sends its discovery probes to
+the origin's `/`, which an application deployed under a context path never receives. Executable
+jars already own the root; the case to watch is a WAR in a shared container. The deployment guide
+supplied with your licence covers this and the rest of a production install.
 
 ## Running the demo
 

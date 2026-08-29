@@ -1,7 +1,6 @@
 // demo-spring-boot: click "Edit in Word" → Word → edit → save → Postgres row updated.
 // The reference host for the Spring Boot starter. Intentionally small: one entity, one provider,
-// one page. Form login, signed URLs and MS-OFBA are all wired up; run it on localhost or a
-// private network, since the signing key in application.yml is a development placeholder.
+// one page. Form login, licence-derived signed URLs and MS-OFBA are all wired up.
 plugins {
     java
     id("org.springframework.boot") version "3.5.4"

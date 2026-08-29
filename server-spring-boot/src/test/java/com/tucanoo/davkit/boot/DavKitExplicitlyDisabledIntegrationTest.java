@@ -20,17 +20,18 @@ import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Proves that merely adding the starter cannot replace an existing host route. */
+/** Proves that the explicit opt-out leaves an existing host route untouched. */
 @SpringBootTest(
-        classes = DavKitDisabledByDefaultIntegrationTest.TestApplication.class,
+        classes = DavKitExplicitlyDisabledIntegrationTest.TestApplication.class,
+        properties = "davkit.enabled=false",
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class DavKitDisabledByDefaultIntegrationTest {
+class DavKitExplicitlyDisabledIntegrationTest {
 
     @LocalServerPort
     int port;
 
     @Test
-    void existingHostingRouteIsUntouchedWithoutExplicitActivation() throws Exception {
+    void existingHostRouteIsUntouchedWhenDavKitIsDisabled() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(
                         URI.create("http://localhost:" + port + "/hosting/status"))
                 .GET()

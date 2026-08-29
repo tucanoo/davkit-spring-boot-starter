@@ -56,8 +56,8 @@ top-up, so a database created by an older build gains any missing documents on r
 Env: `DEMO_DB_URL` (default `jdbc:postgresql://localhost:5432/davkit_demo`), `DEMO_DB_USER`,
 `DEMO_DB_PASSWORD` (both default `postgres`), `DEMO_KEYSTORE` (default
 `classpath:certs/localhost.p12`), `DEMO_KEYSTORE_PASSWORD` (default `changeit`),
-`DEMO_LICENSE_KEY` (no default), `DEMO_SIGNING_KEY` (signed-URL HMAC key; the default is a
-development placeholder, so override it anywhere reachable by anyone else).
+and `DEMO_LICENSE_KEY` (no default). DavKit derives its signed-URL key from the validated licence;
+the demo needs no separate signing secret.
 
 The keystore is a classpath location rather than a file path on purpose: `gradlew bootRun`
 starts in the module directory and an IDE run configuration usually starts in the repository
