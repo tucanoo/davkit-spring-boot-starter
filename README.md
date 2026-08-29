@@ -22,7 +22,7 @@ Copyright 2026 Tucanoo Solutions Ltd.
 ./gradlew build
 ```
 
-Java 21, Gradle 8.14 (wrapper included).
+Java 17, Gradle 8.14 (wrapper included).
 
 The build needs `com.tucanoo.davkit:server` at the same version. It is resolved in one of two
 ways, automatically:

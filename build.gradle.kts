@@ -28,13 +28,14 @@ subprojects {
     }
     plugins.withId("java") {
         extensions.configure<JavaPluginExtension> {
-            toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-            // Real sources for the open-source wrapper; the proprietary core publishes a
-            // README-only sources jar instead (distribution hardening design).
+            toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+            // Real sources for the open-source wrapper; the proprietary core publishes no
+            // sources variant or sources jar (distribution hardening design).
             withSourcesJar()
         }
         tasks.withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
+            options.release.set(17)
             options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing", "-Werror", "-parameters"))
         }
         tasks.withType<Test>().configureEach {

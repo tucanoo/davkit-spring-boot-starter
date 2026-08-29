@@ -45,7 +45,8 @@ val compileBoot4 by tasks.registering(JavaCompile::class) {
     source = sourceSets.main.get().java
     classpath = boot4
     destinationDirectory.set(layout.buildDirectory.dir("classes/boot4"))
+    options.release.set(17)
     options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing", "-Werror"))
-    javaCompiler.set(javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    javaCompiler.set(javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(17)) })
 }
 tasks.named("check") { dependsOn(compileBoot4) }
