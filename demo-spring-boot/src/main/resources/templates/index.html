@@ -5,12 +5,15 @@
 </head>
 <body>
 <h1>DavKit demo</h1>
-<p>Each row is a <code>bytea</code> in Postgres — a Word document, an Excel workbook and a
+<p>Each row is a document in the in-memory H2 database — a Word document, an Excel workbook and a
 PowerPoint deck, all served by the same provider (the server has no type-specific code; only the
-link scheme differs). Click <em>Edit in&hellip;</em>, enable editing, type, Ctrl+S — then reload this page.</p>
+link scheme differs). Click <em>Edit in&hellip;</em>, enable editing, type, Ctrl+S — then reload this page.
+Documents reset when the demo restarts.</p>
 <p><small>Signed in as <b th:text="${user}">user</b>. <em>Edit in&hellip;</em> uses a signed URL
-(valid <span th:text="${ttl}">PT8H</span>, works on Windows and Mac); <em>via OFBA</em> uses the
+(valid <span th:text="${ttl}">PT8H</span>); <em>via OFBA</em> uses the
 plain URL, so Office must do the MS-OFBA login handshake (Windows only).</small></p>
+<p><small>The demo defaults to local HTTP. If Office refuses to open or save a document,
+try the optional HTTPS profile described in the README.</small></p>
 <table>
   <tr><th>Name</th><th>Size</th><th>Version</th><th>Updated</th><th></th></tr>
   <tr th:each="r : ${rows}">

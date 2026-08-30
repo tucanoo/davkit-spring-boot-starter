@@ -98,8 +98,9 @@ Deploy at the container's root context. Office sends discovery requests to the o
 
 ## Demo and reporting
 
-The [demo instructions](demo-spring-boot/README.md) cover PostgreSQL, a trusted local HTTPS
-certificate and the test login. Use the demo only on a development machine.
+The [demo instructions](demo-spring-boot/README.md) use in-memory H2 and local HTTP, with no
+database server or certificate setup. An optional HTTPS profile is available for Office
+testing. Use the demo only on a development machine.
 
 For bugs and changes, see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately
 using [SECURITY.md](SECURITY.md).

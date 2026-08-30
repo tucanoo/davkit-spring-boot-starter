@@ -13,8 +13,7 @@ import java.util.Locale;
 
 /**
  * One page: the documents table with server-rendered Office URI scheme links. Every
- * link is a signed URL for the current user — here a fixed demo user, since the demo
- * has no login; a real host passes its authenticated user id as the subject.
+ * signed link uses the logged-in user's name as its subject and the request's HTTP(S) origin.
  */
 @Controller
 public class IndexController {
@@ -52,7 +51,7 @@ public class IndexController {
     }
 
     /**
-     * {@code ms-word:ofe|u|<https-url>} — "open for edit" (Microsoft Office URI Schemes). Picking
+     * {@code ms-word:ofe|u|<http-or-https-url>} — "open for edit" (Microsoft Office URI Schemes). Picking
      * the scheme by extension is a client-side concern, so it lives here, not in the core.
      */
     static String officeScheme(String name) {

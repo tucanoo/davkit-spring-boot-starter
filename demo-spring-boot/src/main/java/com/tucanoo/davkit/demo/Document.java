@@ -13,8 +13,8 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 /**
- * {@code documents(id, name, bytes, updated_at, version)}. {@code bytes} is a plain {@code byte[]}
- * so Hibernate maps it to {@code bytea} on Postgres (an {@code @Lob} would become an {@code oid}).
+ * {@code documents(id, name, bytes, updated_at, version)}. The demo stores each document's
+ * {@code bytes} in an in-memory H2 database.
  * {@code version} gives optimistic locking, which the provider turns into a 412.
  */
 @Entity
@@ -29,7 +29,7 @@ public class Document {
     @Column(nullable = false, unique = true)
     private String name;
 
-    /** Unbounded binary: {@code bytea} on Postgres, a large VARBINARY/BLOB elsewhere (H2 in tests). */
+    /** Large binary column so Office documents are not limited to the default VARBINARY length. */
     @JdbcTypeCode(SqlTypes.LONG32VARBINARY)
     @Column(nullable = false)
     private byte[] bytes;

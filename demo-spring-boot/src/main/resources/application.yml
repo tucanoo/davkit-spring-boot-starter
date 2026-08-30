@@ -1,21 +1,16 @@
 server:
-  port: 8443
-  ssl:
-    # Office trusts the OS store, not the browser's: generate with mkcert (see README).
-    # A classpath location rather than a file path, so it resolves the same under bootRun, an IDE
-    # run configuration and a built jar. Nothing depends on the working directory.
-    key-store: ${DEMO_KEYSTORE:classpath:certs/localhost.p12}
-    key-store-type: PKCS12
-    key-store-password: ${DEMO_KEYSTORE_PASSWORD:changeit}
+  # Local HTTP only by default; use the https profile for optional TLS (see README).
+  address: 127.0.0.1
+  port: 8080
 
 spring:
   datasource:
-    url: ${DEMO_DB_URL:jdbc:postgresql://localhost:5432/davkit_demo}
-    username: ${DEMO_DB_USER:postgres}
-    password: ${DEMO_DB_PASSWORD:postgres}
+    url: jdbc:h2:mem:davkit_demo;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
   jpa:
     hibernate:
-      ddl-auto: update   # demo only
+      ddl-auto: create-drop   # demo only: documents reset on restart
     open-in-view: false
 
 davkit:

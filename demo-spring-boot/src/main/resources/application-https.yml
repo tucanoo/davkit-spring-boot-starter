@@ -1,0 +1,9 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    # Office must trust the certificate in the OS store (see README).
+    # The classpath location works under bootRun, an IDE and a packaged jar.
+    key-store: ${DEMO_KEYSTORE:classpath:certs/localhost.p12}
+    key-store-type: PKCS12
+    key-store-password: ${DEMO_KEYSTORE_PASSWORD:changeit}
