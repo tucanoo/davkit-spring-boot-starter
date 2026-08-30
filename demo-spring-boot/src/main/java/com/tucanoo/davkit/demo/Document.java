@@ -15,7 +15,7 @@ import java.time.Instant;
 /**
  * {@code documents(id, name, bytes, updated_at, version)}. {@code bytes} is a plain {@code byte[]}
  * so Hibernate maps it to {@code bytea} on Postgres (an {@code @Lob} would become an {@code oid}).
- * {@code version} gives optimistic locking, which the provider turns into a 412 (Q20/Q23).
+ * {@code version} gives optimistic locking, which the provider turns into a 412.
  */
 @Entity
 @Table(name = "documents")

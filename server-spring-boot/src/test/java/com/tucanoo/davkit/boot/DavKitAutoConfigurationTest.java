@@ -176,7 +176,7 @@ class DavKitAutoConfigurationTest {
             FilterRegistrationBean<OfficeDiscoveryFilter> filter =
                     (FilterRegistrationBean<OfficeDiscoveryFilter>) ctx.getBean("davOfficeDiscoveryFilter");
             assertThat(filter.getUrlPatterns()).containsExactly("/*");
-            // Q7: one ahead of springSecurityFilterChain (-100).
+            // One ahead of springSecurityFilterChain (-100).
             assertThat(filter.getOrder()).isEqualTo(-101);
         });
     }
@@ -224,7 +224,7 @@ class DavKitAutoConfigurationTest {
 
     @Test
     void firewallAllowsDavVerbs() {
-        // Q8: the default StrictHttpFirewall rejects PROPFIND and LOCK outright.
+        // The default StrictHttpFirewall rejects PROPFIND and LOCK outright.
         runner.run(ctx -> {
             HttpFirewall firewall = ctx.getBean(HttpFirewall.class);
             for (String method : new String[] {"PROPFIND", "PROPPATCH", "LOCK", "UNLOCK", "OPTIONS", "PUT"}) {
@@ -266,7 +266,7 @@ class DavKitAutoConfigurationTest {
     }
 
     /**
-     * licensing.md "Runtime behaviour": a licence problem never fails the host's boot — the
+     * A licence problem never fails the host's boot — the
      * context starts, the gate carries the problem, and the servlet answers 503. Even
      * configured authenticators stay unregistered so the 503 explanation is reachable.
      */
@@ -306,7 +306,7 @@ class DavKitAutoConfigurationTest {
     /**
      * Commercial, updatesUntil 2026-01-31 — the only product-signed key in this repository, and
      * deliberately a worthless one: every build is dated after it, so it can only ever produce
-     * the refusal this test asserts. A usable key must never be committed (licensing.md) — keys
+     * the refusal this test asserts. A usable key must never be committed — keys
      * verify offline and cannot be withdrawn. Tests that need a *serving* gate call
      * {@link #licensed()} instead of carrying a key.
      */

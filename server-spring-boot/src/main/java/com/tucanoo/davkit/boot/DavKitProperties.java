@@ -7,8 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * {@code davkit.*} configuration. Skeleton only — surface agreed in davkit-core's docs/architecture.md,
- * implementation lands in v0.1.
+ * {@code davkit.*} configuration.
  */
 @ConfigurationProperties(prefix = "davkit")
 public class DavKitProperties {
@@ -20,7 +19,7 @@ public class DavKitProperties {
     private String path = "/webdav";
 
     /**
-     * Licence key — required for all operation (licensing.md; free evaluation keys exist).
+     * Licence key — required for all operation; free evaluation keys are available.
      * Absent or invalid: the host application boots normally, DavKit endpoints answer 503.
      */
     private String licenseKey;
@@ -65,7 +64,7 @@ public class DavKitProperties {
         public void setSharePointStubs(boolean sharePointStubs) { this.sharePointStubs = sharePointStubs; }
     }
 
-    /** Signed expiring URLs (ADR-0005, auth-strategies.md §1). */
+    /** Signed expiring URLs. */
     public static class SignedUrl {
         /** Optional key id → secret override. By default DavKit derives a key from the licence. */
         private Map<String, String> keys = new LinkedHashMap<>();
@@ -81,7 +80,7 @@ public class DavKitProperties {
         public void setTtl(Duration ttl) { this.ttl = ttl; }
     }
 
-    /** DavKit's authentication chain on {@code davkit.path} (auth-strategies.md). */
+    /** DavKit's authentication chain on {@code davkit.path}. */
     public static class Auth {
         /**
          * Refuse requests no authenticator vouches for. On by default; turning it off makes every

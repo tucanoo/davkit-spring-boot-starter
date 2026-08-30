@@ -13,11 +13,11 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
- * The security shape a real host needs around DavKit (Q7; see "Wiring the starter into a
+ * The security shape a real host needs around DavKit (see "Wiring the starter into a
  * host" in the repository README):
  * <ol>
  *   <li>{@code /webdav/**} in its own chain: no CSRF (Office sends none), no redirect-to-login
- *       (Word reads a 302 as "not a WebDAV server", Q3). DavKit's own filter authenticates there
+ *       (Word reads a 302 as "not a WebDAV server"). DavKit's own filter authenticates there
  *       (signed URLs, OFBA session).</li>
  *   <li>The application itself behind ordinary form login. Spring Security's generated
  *       {@code /login} page doubles as the OFBA login page; the starter's
@@ -33,7 +33,7 @@ class SecurityConfig {
     SecurityFilterChain davkitChain(HttpSecurity http) throws Exception {
         // An explicit matcher, not securityMatcher("/webdav/**"): with Spring MVC present the
         // String overload builds an MvcRequestMatcher, which never matches requests served by a
-        // non-MVC servlet like DavKit's - the chain silently falls through to form login (Q7).
+        // non-MVC servlet like DavKit's - the chain silently falls through to form login.
         http.securityMatcher(PathPatternRequestMatcher.withDefaults().matcher("/webdav/**"))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());

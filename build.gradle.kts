@@ -7,7 +7,7 @@ plugins {
     base
 }
 
-// demo-spring-boot is a reference host, never published (docs/versioning.md in davkit-core).
+// demo-spring-boot is a reference host, never published.
 val publishedModules = setOf("davkit-spring-boot")
 
 // Central rejects -SNAPSHOT on the release endpoint. The guard still runs on snapshots — that is
@@ -138,10 +138,8 @@ subprojects {
 // ---------------------------------------------------------------------------
 // Release artifact guard
 //
-// The public half of the guard described in davkit-core's distribution design
-// (docs/superpowers/specs/2026-08-26-...-design.md, "Release artifact guard"): this repository
-// must publish real sources under Apache 2.0, must depend on the core at the exact matching
-// version, and must never ship the demo host or test material.
+// This repository must publish real sources under Apache 2.0, must depend on the core at the
+// exact matching version, and must never ship the demo host or test material.
 // ---------------------------------------------------------------------------
 
 val forbiddenEntries = listOf(
@@ -237,7 +235,7 @@ val verifyReleaseArtifacts by tasks.registering {
         }
 
         // 4. Apache 2.0, and the core pinned to this exact version — never a range. A mismatch here
-        //    is the failure the lockstep scheme exists to prevent (docs/versioning.md in davkit-core).
+        //    is the failure the lockstep scheme exists to prevent.
         val text = pomFile.readText()
         if (!text.contains("<name>$expectedLicence</name>")) {
             failures += "wrapper POM does not declare $expectedLicence"

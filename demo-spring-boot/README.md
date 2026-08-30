@@ -16,7 +16,7 @@ documents(id bigserial, name text unique, bytes bytea, updated_at timestamptz, v
 |---|---|
 | `Document.java` | the entity — plain `byte[]` → `bytea`; `@Version` for optimistic locking |
 | `JpaDocumentProvider.java` | **the whole DavKit integration**: ~90 lines, mount `documents`, ETag `<id>-<version>`, optimistic-lock failure → 412 |
-| `IndexController.java` | builds the `ms-word:` / `ms-excel:` / `ms-powerpoint:` link per extension (ADR-0006) |
+| `IndexController.java` | builds the `ms-word:` / `ms-excel:` / `ms-powerpoint:` link per extension |
 | `application.yml` | `davkit.path`, HTTPS keystore, datasource — all env-overridable |
 
 There is no Office-specific code anywhere except the link scheme.
@@ -24,7 +24,7 @@ There is no Office-specific code anywhere except the link scheme.
 v0.2 additions: form login (dave / password), **signed URLs** for every rendered link (the
 subject is the logged-in user), and **MS-OFBA** on plain `/webdav/...` URLs (the *via OFBA* link)
 using Spring Security's `/login` as the OFBA dialog page. `SecurityConfig` shows the chain split
-a real host needs (Q7), including the `MvcRequestMatcher` trap; the repository README's "Wiring
+a real host needs, including the `MvcRequestMatcher` trap; the repository README's "Wiring
 the starter into a host" covers the shape. **No licence key ships with this demo**: supply your
 own via `DEMO_LICENSE_KEY` (see Run).
 
@@ -67,7 +67,7 @@ location, so `file:/absolute/path.p12` works for a certificate kept outside the 
 ## Tests
 
 `DemoApplicationTest` boots the real stack on H2 + embedded Tomcat and walks the sequence Word
-sends (Q39): OPTIONS → HEAD → LOCK → GET → PUT(423 without token) → PUT(204 with token) → UNLOCK,
+sends: OPTIONS → HEAD → LOCK → GET → PUT(423 without token) → PUT(204 with token) → UNLOCK,
 then checks the row and the ETag, and repeats the LOCK/PUT/UNLOCK cycle against the `.xlsx` and
 `.pptx` rows (same verbs, different Content-Type — the server has no type-specific code path).
 MockMvc is not used — it cannot reach a registered servlet. `SeedDataTest` unzips the three

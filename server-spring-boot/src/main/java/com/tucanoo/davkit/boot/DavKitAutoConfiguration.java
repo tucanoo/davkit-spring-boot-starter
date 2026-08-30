@@ -53,10 +53,9 @@ import java.util.Map;
 /**
  * Wires the framework-free core into a Spring Boot application. Everything here is plain
  * constructor plumbing — the core takes its configuration as arguments precisely so that this
- * class stays mechanical. Uses only the Boot classes that ADR-0004 verified are stable across
- * Boot 3 and 4.
+ * class stays mechanical. Uses only the Boot classes that are stable across Boot 3 and 4.
  *
- * <p>Security-chain split (Q7): the discovery filter is registered at order -101, one ahead of
+ * <p>Security-chain split: the discovery filter is registered at order -101, one ahead of
  * Spring Security's filter (-100), so it answers Office's root probes before any redirect-to-login
  * can fire. The servlet under {@code davkit.path} must additionally sit outside the host's
  * security chain, or in a chain of its own without CSRF; that part cannot be done for the host
@@ -71,18 +70,18 @@ public class DavKitAutoConfiguration {
 
     private static final Log LOG = LogFactory.getLog(DavKitAutoConfiguration.class);
 
-    /** One ahead of Spring Security's {@code springSecurityFilterChain} (-100). Q7. */
+    /** One ahead of Spring Security's {@code springSecurityFilterChain} (-100). */
     static final int DISCOVERY_FILTER_ORDER = -101;
     /** After the discovery filter, on {@code davkit.path} only. */
     static final int AUTH_FILTER_ORDER = -99;
 
     /**
-     * Verified once at startup (licensing.md "Runtime behaviour"). A licence problem — no key,
+     * Verified once at startup. A licence problem — no key,
      * bad signature, expired evaluation, or out-of-support build — NEVER fails the context: the
      * host boots, the log gets one ERROR, and the DavKit endpoints answer 503 with the
-     * explanation. CI runs and colleagues' machines without the key file must not fail, and
+     * explanation. A build or a developer machine without a key file must not fail, and
      * neither may a production host over licensing. Every valid key grants the whole library —
-     * there is no per-feature gating (licensing.md, decided 2026-08-26).
+     * there is no per-feature gating.
     */
     @Bean
     DavKitLicenseState davKitLicenseState(DavKitProperties properties) {
@@ -162,12 +161,12 @@ public class DavKitAutoConfiguration {
     }
 
     /**
-     * DavKit's authentication chain (auth-strategies.md "Ordering and composition"): signed URLs,
+     * DavKit's authentication chain: signed URLs,
      * then OFBA, then Basic, then the host's principal resolver; first success wins, then
      * challenges in the same order. When the gate is refused at startup the registration is
      * disabled, so requests fall through to the servlet's 503 explanation. (An evaluation key
      * that expires while the process runs keeps its authenticators; an authenticated request then
-     * still gets the servlet's 503, which is the answer we want in front of the evaluator.)
+     * still gets the servlet's 503, which explains the expiry rather than failing opaquely.)
      * Missing collaborator beans for an enabled feature remain hard startup failures — that is a
      * wiring bug in the host, not a licensing state.
      */
@@ -226,7 +225,7 @@ public class DavKitAutoConfiguration {
         return registration;
     }
 
-    /** Spring Security session adapter for OFBA (Q7: read directly, the chain never ran here). */
+    /** Spring Security session adapter for OFBA (read directly, the chain never ran here). */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(org.springframework.security.web.context.HttpSessionSecurityContextRepository.class)
     @ConditionalOnProperty(prefix = "davkit.auth.ofba", name = "enabled", havingValue = "true")
@@ -284,7 +283,7 @@ public class DavKitAutoConfiguration {
         return registration;
     }
 
-    /** Signed URLs (ADR-0005): licence-derived by default, with optional configured keys. */
+    /** Signed URLs: licence-derived by default, with optional configured keys. */
     @Configuration(proxyBeanMethods = false)
     static class SignedUrlConfiguration {
 
@@ -379,7 +378,7 @@ public class DavKitAutoConfiguration {
     }
 
     /**
-     * Q8: {@code StrictHttpFirewall} allows only seven HTTP methods by default and rejects
+     * {@code StrictHttpFirewall} allows only seven HTTP methods by default and rejects
      * PROPFIND/LOCK/... with a 400 before any filter chain is consulted, so even a host that keeps
      * {@code davkit.path} in its own permit-all chain needs this. Only when Spring Security is
      * present and the host has not defined its own firewall.

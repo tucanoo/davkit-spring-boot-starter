@@ -12,9 +12,9 @@ import java.util.Map;
 
 /**
  * Turns the Spring Security context stored in the HTTP session into a {@link DavPrincipal} —
- * the OFBA adapter (auth-strategies.md §2). It reads the session directly through
+ * the OFBA adapter. It reads the session directly through
  * {@link HttpSessionSecurityContextRepository} because {@code davkit.path} is outside the host's
- * security filter chain (Q7): the chain never ran for this request, so
+ * security filter chain: the chain never ran for this request, so
  * {@code SecurityContextHolder} is empty, but the session Office replays still holds the login.
  */
 final class SpringSecuritySessionResolver implements OfbaSessionResolver {

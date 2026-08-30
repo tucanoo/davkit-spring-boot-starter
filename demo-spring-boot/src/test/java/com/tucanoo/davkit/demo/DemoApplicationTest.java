@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The whole host wired together on H2 and a real embedded Tomcat (MockMvc cannot reach a
  * registered servlet): starter → DavServlet → JPA provider → row. Walks the sequence Word
- * actually sends (Q39: LOCK → GET → PUT with the token → UNLOCK) and checks the row changed and
+ * actually sends (LOCK → GET → PUT with the token → UNLOCK) and checks the row changed and
  * the ETag moved on.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -85,7 +85,7 @@ class DemoApplicationTest {
     }
 
     /**
-     * The server has no type-specific code path (handoff §10): the same verb sequence Word sends
+     * The server has no type-specific code path: the same verb sequence Word sends
      * must work unchanged for the Excel and PowerPoint rows, with only Content-Type differing.
      */
     @Test
@@ -153,7 +153,7 @@ class DemoApplicationTest {
 
     @Test
     void plainUrlsWithoutTokenOrSessionAreRefused() throws Exception {
-        // Non-Office client, no session, no token: 403, no login redirect (Q3), no Basic challenge.
+        // Non-Office client, no session, no token: 403, no login redirect, no Basic challenge.
         HttpResponse<byte[]> refused = send("GET", "/webdav/documents/Welcome%20letter.docx", null);
         assertThat(refused.statusCode()).isEqualTo(403);
         assertThat(refused.headers().firstValue("WWW-Authenticate")).isEmpty();
@@ -161,7 +161,7 @@ class DemoApplicationTest {
 
     @Test
     void wordSequenceUpdatesTheRow() throws Exception {
-        // Same tokenised prefix for the document and its parent collection, as Word uses them (Q40).
+        // Same tokenised prefix for the document and its parent collection, as Word uses them.
         String doc = signedUrls.path("dave", "documents/Welcome letter.docx");
         String parent = doc.substring(0, doc.lastIndexOf('/') + 1);
         long versionBefore = documents.findByName("Welcome letter.docx").orElseThrow().getVersion();
@@ -185,7 +185,7 @@ class DemoApplicationTest {
         assertThat(get.headers().firstValue("Content-Type"))
                 .contains("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-        // PUT without the token on a locked document is refused (Q18).
+        // PUT without the token on a locked document is refused.
         assertThat(send("PUT", doc, "intruder".getBytes(StandardCharsets.UTF_8), "Content-Type", "text/xml")
                 .statusCode()).isEqualTo(423);
 

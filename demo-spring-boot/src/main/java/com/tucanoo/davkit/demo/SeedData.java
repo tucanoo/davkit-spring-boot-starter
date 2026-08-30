@@ -14,7 +14,7 @@ import java.util.zip.ZipOutputStream;
 /**
  * Inserts one minimal document per Office application on first start, so the page demonstrates
  * that the same WebDAV rows open in Word, Excel and PowerPoint — the server has no type-specific
- * code path, only the link scheme differs (ADR-0006).
+ * code path, only the link scheme differs.
  */
 @Configuration
 class SeedData {

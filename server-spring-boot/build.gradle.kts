@@ -9,11 +9,11 @@ dependencies {
     // davkit-core is present (see settings.gradle.kts). Exact version, never a range.
     api("com.tucanoo.davkit:davkit-server:$version")
 
-    // Compiled against Boot 3.x. Boot 4.x compatibility is verified by a separate test matrix
-    // (see davkit-core's docs/adr/0004-spring-boot-3-and-4.md); if packages diverge the starter is split.
+    // Compiled against Boot 3.x. Boot 4.x compatibility is verified by a separate compilation
+    // pass; if packages diverge the starter is split.
     compileOnly(libs.spring.boot.autoconfigure)
     compileOnly(libs.jakarta.servlet)
-    // Only for the StrictHttpFirewall bean (Q8); guarded by @ConditionalOnClass, so hosts
+    // Only for the StrictHttpFirewall bean; guarded by @ConditionalOnClass, so hosts
     // without Spring Security are unaffected.
     compileOnly(libs.spring.security.web)
     annotationProcessor(libs.spring.boot.configuration.processor)
@@ -28,7 +28,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// ADR-0004: compile the same sources against Spring Boot 4 on every build, so a Boot 4 package
+// Compile the same sources against Spring Boot 4 on every build, so a Boot 4 package
 // move fails here rather than at a customer's site. `./gradlew :davkit-spring-boot:compileBoot4`.
 val boot4 by configurations.creating {
     extendsFrom(configurations.getByName("api"))
@@ -41,7 +41,7 @@ dependencies {
 }
 val compileBoot4 by tasks.registering(JavaCompile::class) {
     group = "verification"
-    description = "Compiles the starter against Spring Boot 4.x (ADR-0004 guard)."
+    description = "Compiles the starter against Spring Boot 4.x."
     source = sourceSets.main.get().java
     classpath = boot4
     destinationDirectory.set(layout.buildDirectory.dir("classes/boot4"))

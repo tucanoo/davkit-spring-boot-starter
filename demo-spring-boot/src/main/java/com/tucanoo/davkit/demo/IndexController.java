@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One page: the documents table with server-rendered Office URI scheme links (ADR-0006). Every
- * link is a signed URL for the current user (ADR-0005) — here a fixed demo user, since the demo
+ * One page: the documents table with server-rendered Office URI scheme links. Every
+ * link is a signed URL for the current user — here a fixed demo user, since the demo
  * has no login; a real host passes its authenticated user id as the subject.
  */
 @Controller

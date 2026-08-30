@@ -23,12 +23,12 @@ import java.util.Optional;
  * The reference JPA-backed provider: one row per document under {@code /webdav/documents/<name>}.
  * <ul>
  *   <li>{@code resolve} is a cheap read; the entity is stashed in {@code attributes} so
- *       {@code read} in the same request does not hit the database again (ADR-0002).</li>
- *   <li>The ETag is {@code <id>-<version>}: it changes on every save (Q15) and is derived from
- *       the same row state Office will see on the next PROPFIND (Q20).</li>
+ *       {@code read} in the same request does not hit the database again.</li>
+ *   <li>The ETag is {@code <id>-<version>}: it changes on every save and is derived from
+ *       the same row state Office will see on the next PROPFIND.</li>
  *   <li>{@code write} runs in its own transaction; an optimistic-lock failure becomes a 412
- *       rather than a 500, so Word shows "changed by another user" instead of retrying (Q23).</li>
- *   <li>Everyone may read and write — authentication is v0.2.</li>
+ *       rather than a 500, so Word shows "changed by another user" instead of retrying.</li>
+ *   <li>Everyone may read and write; this demo applies no per-document authorisation.</li>
  * </ul>
  */
 @Component

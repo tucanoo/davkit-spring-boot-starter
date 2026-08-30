@@ -4,7 +4,7 @@ rootProject.name = "davkit-spring"
 
 include(
     "server-spring-boot",
-    "demo-spring-boot",   // reference host; never published (docs/versioning.md in davkit-core)
+    "demo-spring-boot",   // reference host; never published
 )
 
 // The directory keeps its role-name; the published coordinate is com.tucanoo.davkit:davkit-spring-boot
