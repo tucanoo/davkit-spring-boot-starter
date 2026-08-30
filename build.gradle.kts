@@ -8,7 +8,7 @@ plugins {
 }
 
 // demo-spring-boot is a reference host, never published (docs/versioning.md in davkit-core).
-val publishedModules = setOf("server-spring-boot")
+val publishedModules = setOf("davkit-spring-boot")
 
 // Central rejects -SNAPSHOT on the release endpoint. The guard still runs on snapshots — that is
 // what keeps it exercised between releases — but the signature check switches on here.
@@ -112,8 +112,8 @@ subprojects {
     plugins.withId("java") {
         extensions.configure<JavaPluginExtension> {
             toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-            // Real sources for the open-source wrapper; the proprietary core publishes no
-            // sources variant or sources jar (distribution hardening design).
+            // Real sources for the open-source wrapper; the proprietary core registers no sources
+            // variant and ships only an explanatory stub (distribution hardening design).
             withSourcesJar()
         }
         tasks.withType<JavaCompile>().configureEach {
@@ -166,13 +166,17 @@ val verifyReleaseArtifacts by tasks.registering {
     val expectedLicence = licenseName
 
     outputs.file(reportFile)
+    // Never up to date: this task's real inputs are the staged artifacts, which Gradle cannot
+    // see through the publish tasks. Left to infer, it can skip verification on a later run —
+    // and a guard that can be skipped is not a guard.
+    outputs.upToDateWhen { false }
 
     doLast {
         val failures = mutableListOf<String>()
         val inventory = StringBuilder("DavKit Spring Boot starter release artifacts — version $versionString\n\n")
 
         val moduleDir = stagingDir.get().asFile
-            .resolve("com/tucanoo/davkit/server-spring-boot/$versionString")
+            .resolve("com/tucanoo/davkit/davkit-spring-boot/$versionString")
         if (!moduleDir.isDirectory) {
             throw GradleException("No staged artifacts at $moduleDir — run stageRelease first.")
         }
@@ -242,10 +246,10 @@ val verifyReleaseArtifacts by tasks.registering {
             failures += "wrapper POM declares the commercial licence — wrong licence policy for the Apache 2.0 wrapper"
         }
         val coreDep = Regex(
-            """<groupId>com\.tucanoo\.davkit</groupId>\s*<artifactId>server</artifactId>\s*<version>([^<]+)</version>"""
+            """<groupId>com\.tucanoo\.davkit</groupId>\s*<artifactId>davkit-server</artifactId>\s*<version>([^<]+)</version>"""
         ).find(text)
         when {
-            coreDep == null -> failures += "wrapper POM does not depend on com.tucanoo.davkit:server"
+            coreDep == null -> failures += "wrapper POM does not depend on com.tucanoo.davkit:davkit-server"
             coreDep.groupValues[1] != versionString ->
                 failures += "wrapper POM depends on core ${coreDep.groupValues[1]}, expected $versionString"
         }

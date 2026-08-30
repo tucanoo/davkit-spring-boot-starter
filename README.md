@@ -4,7 +4,7 @@ The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit): auto-
 `davkit.*` properties, and servlet/filter/firewall/auth registration.
 
 Apache License 2.0. This wrapper is open source; the DavKit core it depends on
-(`com.tucanoo.davkit:server`) is proprietary and requires a licence key. Publishing this wrapper
+(`com.tucanoo.davkit:davkit-server`) is proprietary and requires a licence key. Publishing this wrapper
 openly does not make the core open source.
 
 Copyright 2026 Tucanoo Solutions Ltd.
@@ -13,7 +13,7 @@ Copyright 2026 Tucanoo Solutions Ltd.
 
 | Module | Purpose | Published |
 |---|---|---|
-| `server-spring-boot` | The starter itself | yes, `com.tucanoo.davkit:server-spring-boot` |
+| `server-spring-boot` | The starter itself | yes, `com.tucanoo.davkit:davkit-spring-boot` |
 | `demo-spring-boot` | Reference host: click, edit in Word, save, database row updated | no |
 
 ## Build
@@ -24,7 +24,7 @@ Copyright 2026 Tucanoo Solutions Ltd.
 
 Java 17, Gradle 8.14 (wrapper included).
 
-The build needs `com.tucanoo.davkit:server` at the same version. It is resolved in one of two
+The build needs `com.tucanoo.davkit:davkit-server` at the same version. It is resolved in one of two
 ways, automatically:
 
 - **Sibling checkout.** If `../davkit-core` exists, Gradle includes it as a composite build and

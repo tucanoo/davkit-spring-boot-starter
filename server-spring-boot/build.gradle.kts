@@ -7,7 +7,7 @@ description = "DavKit Spring Boot starter: auto-configuration, properties, servl
 dependencies {
     // The proprietary core, resolved from Maven; substituted by the sibling checkout when
     // davkit-core is present (see settings.gradle.kts). Exact version, never a range.
-    api("com.tucanoo.davkit:server:$version")
+    api("com.tucanoo.davkit:davkit-server:$version")
 
     // Compiled against Boot 3.x. Boot 4.x compatibility is verified by a separate test matrix
     // (see davkit-core's docs/adr/0004-spring-boot-3-and-4.md); if packages diverge the starter is split.
@@ -29,7 +29,7 @@ dependencies {
 }
 
 // ADR-0004: compile the same sources against Spring Boot 4 on every build, so a Boot 4 package
-// move fails here rather than at a customer's site. `./gradlew :server-spring-boot:compileBoot4`.
+// move fails here rather than at a customer's site. `./gradlew :davkit-spring-boot:compileBoot4`.
 val boot4 by configurations.creating {
     extendsFrom(configurations.getByName("api"))
 }
