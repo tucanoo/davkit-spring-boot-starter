@@ -1,0 +1,29 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="utf-8"><title>DavKit demo</title>
+<style>body{font:15px system-ui;margin:2rem;max-width:60rem}table{border-collapse:collapse}td,th{padding:.4rem .8rem;border-bottom:1px solid #ddd;text-align:left}</style>
+</head>
+<body>
+<h1>DavKit demo</h1>
+<p>Each row is a <code>bytea</code> in Postgres — a Word document, an Excel workbook and a
+PowerPoint deck, all served by the same provider (the server has no type-specific code; only the
+link scheme differs). Click <em>Edit in&hellip;</em>, enable editing, type, Ctrl+S — then reload this page.</p>
+<p><small>Signed in as <b th:text="${user}">user</b>. <em>Edit in&hellip;</em> uses a signed URL
+(valid <span th:text="${ttl}">PT8H</span>, works on Windows and Mac); <em>via OFBA</em> uses the
+plain URL, so Office must do the MS-OFBA login handshake (Windows only).</small></p>
+<table>
+  <tr><th>Name</th><th>Size</th><th>Version</th><th>Updated</th><th></th></tr>
+  <tr th:each="r : ${rows}">
+    <td th:text="${r.doc.name}">name</td>
+    <td th:text="${r.doc.bytes.length}">0</td>
+    <td th:text="${r.doc.version}">0</td>
+    <td th:text="${r.doc.updatedAt}">when</td>
+    <td>
+      <a th:href="${r.editLink}" th:text="'Edit in ' + ${r.editor}">Edit in Office</a>
+      &middot; <a th:href="${r.ofbaLink}">via OFBA</a>
+      &middot; <a th:href="${r.url}">download</a>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

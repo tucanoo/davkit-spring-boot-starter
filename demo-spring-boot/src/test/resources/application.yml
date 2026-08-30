@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:davkit;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+server:
+  ssl:
+    enabled: false
+
+davkit:
+  # Deliberately no key: unpublished test-source support supplies the test context's internal state,
+  # so a clone builds green without reusable key material or a production bypass.
+  auth:
+    ofba:
+      enabled: true

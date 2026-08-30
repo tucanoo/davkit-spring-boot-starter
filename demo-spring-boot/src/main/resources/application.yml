@@ -1,0 +1,35 @@
+server:
+  port: 8443
+  ssl:
+    # Office trusts the OS store, not the browser's: generate with mkcert (see README).
+    # A classpath location rather than a file path, so it resolves the same under bootRun, an IDE
+    # run configuration and a built jar. Nothing depends on the working directory.
+    key-store: ${DEMO_KEYSTORE:classpath:certs/localhost.p12}
+    key-store-type: PKCS12
+    key-store-password: ${DEMO_KEYSTORE_PASSWORD:changeit}
+
+spring:
+  datasource:
+    url: ${DEMO_DB_URL:jdbc:postgresql://localhost:5432/davkit_demo}
+    username: ${DEMO_DB_USER:postgres}
+    password: ${DEMO_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update   # demo only
+    open-in-view: false
+
+davkit:
+  path: /webdav
+  # No key ships with this demo. Put your own in DEMO_LICENSE_KEY (free evaluation keys:
+  # https://tucanoo.com/products/davkit). Without one the app boots normally and /webdav answers 503
+  # with the reason - everything outside DavKit still works.
+  license-key: ${DEMO_LICENSE_KEY:}
+  auth:
+    ofba:
+      enabled: true   # dialog flow: /davkit/ofba/start (protected) -> /login -> back -> /done
+
+logging:
+  file:
+    name: demo.log
+  level:
+    com.tucanoo.davkit: DEBUG
