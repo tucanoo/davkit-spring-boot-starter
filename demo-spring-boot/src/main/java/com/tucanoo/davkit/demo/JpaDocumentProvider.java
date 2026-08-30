@@ -68,6 +68,11 @@ public class JpaDocumentProvider implements DavResourceProvider {
     public DavResource write(DavResource resource, DavWriteRequest request, DavContext ctx) throws IOException {
         Document doc = documents.findById(idOf(resource))
                 .orElseThrow(() -> new DavPreconditionFailedException("document deleted"));
+        // The servlet checked the resolved version before this transaction loaded the row.
+        // Keep the ORM version check below for changes committed after this reload.
+        if (!resource.etag().equals(doc.getId() + "-" + doc.getVersion())) {
+            throw new DavPreconditionFailedException("document changed concurrently");
+        }
         byte[] bytes;
         try (InputStream in = request.content().open()) {
             bytes = in.readAllBytes();

@@ -1,119 +1,107 @@
 # davkit-spring-boot
 
-The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit): auto-configuration,
-`davkit.*` properties, and servlet/filter/firewall/auth registration.
+The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit/). It registers
+DavKit's WebDAV servlet, authentication filters and `davkit.*` configuration properties.
 
-Apache License 2.0. This wrapper is open source; the DavKit core it depends on
-(`com.tucanoo.davkit:davkit-server`) is proprietary and requires a licence key. Publishing this wrapper
-openly does not make the core open source.
+The dependency coordinates for this checkout are:
 
-Copyright 2026 Tucanoo Solutions Ltd.
-
-## Modules
-
-| Module | Purpose | Published |
-|---|---|---|
-| `server-spring-boot` | The starter itself | yes, `com.tucanoo.davkit:davkit-spring-boot` |
-| `demo-spring-boot` | Reference host: click, edit in Word, save, database row updated | no |
-
-## Build
-
+```kotlin
+dependencies {
+    implementation("com.tucanoo.davkit:davkit-spring-boot:0.3.0-SNAPSHOT")
+}
 ```
+
+This is prerelease source. The starter and its proprietary dependency,
+`com.tucanoo.davkit:davkit-server`, both use `0.3.0-SNAPSHOT`. The matching DavKit artifacts
+are not yet available from Maven Central. Before using the dependency or building from
+source, ask [dave@tucanoo.com](mailto:dave@tucanoo.com) about binary access and repository
+setup. A licence key alone does not supply the dependencies.
+
+Request a key through the [evaluation form](https://tucanoo.com/products/davkit/#evaluation-form).
+The starter and demo source in this repository are licensed under [Apache 2.0](LICENSE).
+The core is proprietary and requires a valid licence key at runtime; this repository's
+licence does not grant rights to the core. No key is included.
+
+## Compatibility and builds
+
+| Component | Baseline in this checkout |
+|---|---|
+| Java | Java 17 bytecode and build toolchain |
+| Gradle | 8.14.5, wrapper included |
+| Spring Boot | 3.5.4 for the starter and demo |
+| Spring Security | 6.5.2 for the starter |
+| Spring Boot 4 check | Sources also compile against Boot 4.1.0, Security 7.1.0 and Servlet 6.1.0 |
+
+The Boot 4 compilation check runs as part of `check`; it does not start a Boot 4 host.
+Validate your application's framework and servlet-container combination before deployment.
+DavKit repositories version together, and the starter depends on the core at exactly the
+same version. Do not mix DavKit versions.
+
+Once matching core binaries are available, run from this repository root:
+
+```sh
 ./gradlew build
 ```
 
-Java 17, Gradle 8.14 (wrapper included).
+The build resolves DavKit binaries from Maven Local or Maven Central. Contributors do not
+need proprietary core source. Maintainers who already have an authorised `../davkit-core`
+checkout can use it as an optional composite build; Gradle detects that directory and
+substitutes its projects for Maven dependencies. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for checks and the remaining public-release requirements.
 
-The build needs `com.tucanoo.davkit:davkit-server` at the same version. It is resolved in one of two
-ways, automatically:
-
-- **Sibling checkout.** If `../davkit-core` exists, Gradle includes it as a composite build and
-  a core change is picked up with no publish step. This is the internal development layout:
-
-  ```
-  davkit/
-    ├─ davkit-core/
-    ├─ davkit-spring-boot/     <- you are here
-    └─ davkit-grails-plugin/
-  ```
-
-- **Maven.** Otherwise the coordinate resolves normally. Until the core is published to Maven
-  Central, that means `mavenLocal`, fed by `./gradlew publishToMavenLocal` in `davkit-core`.
+The `server-spring-boot` directory is Gradle project `:davkit-spring-boot` and produces
+the starter. `demo-spring-boot` is a host application and is not published.
 
 ## Wiring the starter into a host
 
-Adding the starter enables DavKit by default. A valid licence is the only signing material needed:
+Register your storage adapter as a `DavResourceProvider` bean. The
+[demo provider](demo-spring-boot/src/main/java/com/tucanoo/davkit/demo/JpaDocumentProvider.java)
+shows document resolution, reads and transactional writes. Its unrestricted document
+permissions are for local demonstration; a host must enforce its own access rules.
+
+Adding the starter enables DavKit by default. Supply the licence through configuration:
 
 ```yaml
 davkit:
   license-key: ${DAVKIT_LICENSE_KEY}
 ```
 
-Set `davkit.enabled=false` to disable all DavKit servlet, filter, firewall and supporting-bean
-registration without removing the dependency.
+Set `davkit.enabled=false` to disable DavKit's servlet, filters, firewall and supporting
+beans without removing the dependency.
 
-Auto-configuration registers everything except the one thing that cannot be decided without
-seeing the host's security chain: **the servlet under `davkit.path` must sit outside that chain,
-or in a chain of its own with CSRF disabled.** Office does not send a CSRF token and will not
-follow a redirect to a login page, so a `davkit.path` left inside a form-login chain answers
-Word with a redirect and the document never opens.
+If the host uses Spring Security, put `davkit.path` in its own chain with CSRF disabled
+and no redirect to form login. Office sends no CSRF token and cannot use a browser login
+redirect to authenticate a WebDAV request. DavKit's authentication filter protects this
+endpoint. The demo's [SecurityConfig](demo-spring-boot/src/main/java/com/tucanoo/davkit/demo/SecurityConfig.java)
+shows the separate chains and an explicit matcher for the non-MVC servlet.
 
-Two details the starter does handle, listed here because they look surprising in a filter dump:
+`OfficeDiscoveryFilter` runs at order -101, before Spring Security's chain at -100, so root
+`OPTIONS` and `PROPFIND` probes reach it before a login redirect. When Spring Security is
+present and the host has no firewall bean, the starter contributes a `StrictHttpFirewall`
+that allows WebDAV methods. A custom firewall must allow those methods too.
 
-- `OfficeDiscoveryFilter` registers at order -101, one ahead of Spring Security's chain at -100,
-  so Office's root probes (`OPTIONS /`, `PROPFIND /`) are answered before any redirect can fire.
-- A `StrictHttpFirewall` bean is contributed when Spring Security is present and the host has not
-  defined its own. The default firewall allows seven HTTP methods and rejects `PROPFIND`, `LOCK`
-  and the rest with a 400 before any chain runs, so even a permit-all chain needs this.
+`davkit.auth.required` defaults to `true`. Signed URLs use a key derived from the validated
+licence and expire after eight hours by default. Configured OFBA and Basic authentication
+follow signed URLs, then host-supplied `DavPrincipalResolver` implementations. When no
+authentication challenge is configured, requests without an accepted principal receive 403.
+Set `davkit.auth.required=false` only for intentional anonymous development access.
 
-`demo-spring-boot`'s `SecurityConfig` shows the whole shape on a real host.
+Signed URLs are bearer credentials: anyone who obtains one can use it until it expires.
+Keep them out of logs and public pages. Installations sharing an OEM licence derive the
+same signing key; configure distinct `davkit.signed-url.keys` maps when installations
+must not trust one another's URLs.
 
-### Authentication defaults
+A missing, invalid or expired licence key causes DavKit endpoints to return 503 with the reason.
 
-`davkit.auth.required` defaults to `true`. Signed URLs are available automatically: their key is
-derived from the validated licence and their default lifetime is eight hours. OFBA and Basic run
-after signed URLs, followed by any host-supplied `DavPrincipalResolver`. If none establishes a
-non-anonymous principal, the starter returns a bare 403. Set `davkit.auth.required=false` only for
-deliberate anonymous development access.
+Deploy at the container's root context. Office sends discovery requests to the origin's
+`/`, which an application mounted under a context path cannot receive.
 
-An absent, invalid or already-expired licence remains a separate condition: authentication stays
-out of the way so the DavKit servlet can return its explanatory licence 503.
+## Demo and reporting
 
-Installations using the same OEM licence derive the same signing key. When those installations
-are separate trust boundaries, configure a distinct `davkit.signed-url.keys` map in each one.
+The [demo instructions](demo-spring-boot/README.md) cover PostgreSQL, a trusted local HTTPS
+certificate and the test login. Use the demo only on a development machine.
 
-### Licence authority
+For bugs and changes, see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately
+using [SECURITY.md](SECURITY.md).
 
-The starter passes the raw `davkit.license-key` value to the proprietary core. The core verifies
-the embedded Ed25519 product signature and creates the runtime gate; the open-source wrapper does
-not verify keys or manufacture approved state. `LicenseGate` is therefore not a host extension
-point. Supplying another gate, servlet configuration, or servlet bean does not replace DavKit's
-verified gate. A custom `DavServletConfig` may still change its documented non-licensing settings.
-
-### Deployment
-
-Deploy the host application at the container's root context. Office sends its discovery probes to
-the origin's `/`, which an application deployed under a context path never receives. Executable
-jars already own the root; the case to watch is a WAR in a shared container. The deployment guide
-supplied with your licence covers this and the rest of a production install.
-
-## Running the demo
-
-The demo serves HTTPS because Office trusts the OS certificate store, not the browser's. Generate
-a local certificate with [mkcert](https://github.com/FiloSottile/mkcert) and install its root CA
-on the machine that will run Word:
-
-```
-mkcert -pkcs12 -p12-file demo-spring-boot/src/main/resources/certs/localhost.p12 localhost 127.0.0.1 ::1
-```
-
-The demo loads it as `classpath:certs/localhost.p12`, so it resolves identically under
-`bootRun`, an IDE run configuration and a built jar. Point `DEMO_KEYSTORE` at any Spring resource
-location (`file:/path/to/your.p12`) to use your own. The demo also needs a DavKit licence key in
-`DEMO_LICENSE_KEY`; without one the application starts normally and the DavKit endpoints answer
-503 explaining why.
-
-## Versioning
-
-All three DavKit repositories ship in lockstep and bump together. The starter depends on the core
-at that exact version, never a range.
+Copyright 2026 Tucanoo Solutions Ltd.
