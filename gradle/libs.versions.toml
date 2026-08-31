@@ -1,8 +1,9 @@
 # Only what this repository's two modules need. The core's catalog lives in davkit-core.
 [versions]
 jakartaServlet = "6.0.0"
-springBoot3 = "3.5.4"
-springSecurity = "6.5.2"
+springBoot3 = "3.5.15"
+# Match spring-security.version in the selected Spring Boot BOM.
+springSecurity = "6.5.11"
 junit = "5.11.4"
 assertj = "3.27.3"
 

@@ -28,8 +28,8 @@ licence does not grant rights to the core. No key is included.
 |---|---|
 | Java | Java 17 bytecode and build toolchain |
 | Gradle | 8.14.5, wrapper included |
-| Spring Boot | 3.5.4 for the starter and demo |
-| Spring Security | 6.5.2 for the starter |
+| Spring Boot | 3.5.15 for the starter and demo |
+| Spring Security | 6.5.11 for the starter |
 | Spring Boot 4 check | Sources also compile against Boot 4.1.0, Security 7.1.0 and Servlet 6.1.0 |
 
 The Boot 4 compilation check runs as part of `check`; it does not start a Boot 4 host.
