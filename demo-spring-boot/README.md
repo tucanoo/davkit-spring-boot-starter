@@ -1,12 +1,13 @@
 # demo-spring-boot
 
-A Spring Boot host with an in-memory H2 database, form login and edit links for desktop
+A Spring Boot host with an in-memory H2 database and signed edit links for desktop
 Word, Excel and PowerPoint. Saves update the document's bytes, version and timestamp.
 All documents and edits disappear when the application stops; startup seeds fresh copies.
 
-This is a local development demo, bound to `127.0.0.1`. The login is `dave` / `password`,
-and H2 uses `sa` with an empty password. The provider grants read/write access to every
-authenticated principal. There are no per-document permissions or user-management features.
+This is a local development demo, bound to `127.0.0.1`. No sign-in is needed to view or edit
+the sample documents, just like the Grails demo. Anyone who can load the page can obtain
+its signed edit links. H2 uses `sa` with an empty password. There are no per-document
+permissions or user-management features.
 HTTP does not encrypt credentials, session cookies or signed document URLs. Keep it on your
 development machine; do not expose it to the internet or use it for sensitive documents.
 
@@ -27,11 +28,15 @@ With `DEMO_LICENSE_KEY` set, run:
 ./gradlew :demo-spring-boot:bootRun
 ```
 
-Open [http://localhost:8080/](http://localhost:8080/) and sign in with the demo login.
+Open [http://localhost:8080/](http://localhost:8080/); no sign-in is required.
 Startup seeds `Welcome letter.docx`, `Quarterly numbers.xlsx`
 and `Kickoff deck.pptx`. Click an edit link, enable editing if Office asks, make a change and
-save. Reload the page to check the version and timestamp. The *via OFBA* links exercise the
-Office forms-based login flow instead of signed URLs.
+save. Click **Refresh** to reload the page and check the version and timestamp.
+
+The optional **via OFBA (sign-in)** links demonstrate Office forms-based authentication
+on Windows. Only that flow needs the demo login, `dave` / `password`. Normal **Edit in…**
+links use signed URLs and do not need a login. Unsigned WebDAV requests still require an
+authenticated session; making the document page public does not disable DavKit authentication.
 
 The database schema uses `ddl-auto: create-drop`. Stop the application with Ctrl+C; there is
 no database service to stop. Restarting discards edits and recreates the three sample documents.
@@ -80,7 +85,8 @@ licence by default.
 
 [JpaDocumentProvider](src/main/java/com/tucanoo/davkit/demo/JpaDocumentProvider.java) implements
 storage access and optimistic concurrency checks. [SecurityConfig](src/main/java/com/tucanoo/davkit/demo/SecurityConfig.java)
-separates WebDAV authentication from the browser's form-login chain.
+separates WebDAV authentication from the optional OFBA form-login flow and permits public
+access only to the demo document page.
 [IndexController](src/main/java/com/tucanoo/davkit/demo/IndexController.java) renders the Office links.
 
 Run automated tests from the repository root:
@@ -90,6 +96,7 @@ Run automated tests from the repository root:
 ```
 
 Tests use the demo's default H2/HTTP configuration with embedded Tomcat on a random port;
-they need no database server, TLS certificate or licence key. They cover login, HTTP Office
+they need no database server, TLS certificate or licence key. They cover access without login,
+optional OFBA login, HTTP Office
 links, lock/read/write sequences, concurrent edits and generated OOXML packages. They do
 not replace a manual edit-and-save check in Office.

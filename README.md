@@ -74,6 +74,9 @@ and no redirect to form login. Office sends no CSRF token and cannot use a brows
 redirect to authenticate a WebDAV request. DavKit's authentication filter protects this
 endpoint. The demo's [SecurityConfig](demo-spring-boot/src/main/java/com/tucanoo/davkit/demo/SecurityConfig.java)
 shows the separate chains and an explicit matcher for the non-MVC servlet.
+The local demo's document page is public so its signed links work without login, like the
+Grails demo. Only the optional OFBA flow requires sign-in; a real host must protect access
+to its own document pages and signed links.
 
 `OfficeDiscoveryFilter` runs at order -101, before Spring Security's chain at -100, so root
 `OPTIONS` and `PROPFIND` probes reach it before a login redirect. When Spring Security is

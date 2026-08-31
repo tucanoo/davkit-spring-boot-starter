@@ -13,7 +13,8 @@ import java.util.Locale;
 
 /**
  * One page: the documents table with server-rendered Office URI scheme links. Every
- * signed link uses the logged-in user's name as its subject and the request's HTTP(S) origin.
+ * signed link uses the request's HTTP(S) origin and an anonymous demo subject unless the
+ * optional OFBA flow has signed the user in.
  */
 @Controller
 public class IndexController {
@@ -40,7 +41,6 @@ public class IndexController {
                     officeScheme(d.getName()) + ":ofe|u|" + plainUrl,
                     editorName(d.getName()));
         }).toList();
-        model.addAttribute("user", user);
         model.addAttribute("rows", rows);
         model.addAttribute("ttl", signedUrls.ttl());
         return "index";

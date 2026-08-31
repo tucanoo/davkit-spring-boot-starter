@@ -19,10 +19,11 @@ import static org.springframework.security.config.Customizer.withDefaults;
  *   <li>{@code /webdav/**} in its own chain: no CSRF (Office sends none), no redirect-to-login
  *       (Word reads a 302 as "not a WebDAV server"). DavKit's own filter authenticates there
  *       (signed URLs, OFBA session).</li>
- *   <li>The application itself behind ordinary form login. Spring Security's generated
- *       {@code /login} page doubles as the OFBA login page; the starter's
- *       {@code /davkit/ofba/done} return page is just another authenticated URL, so the OFBA
- *       dialog is forced through the login flow and Office collects the session cookie.</li>
+ *   <li>The document page is public for this local demo, like the Grails demo. A real host
+ *       should apply its own access rules before issuing signed links.</li>
+ *   <li>The optional OFBA flow stays behind form login. Spring Security's {@code /login}
+ *       page authenticates the Office dialog before it can reach {@code /davkit/ofba/done}
+ *       and collect the session cookie.</li>
  * </ol>
  */
 @Configuration
@@ -42,7 +43,9 @@ class SecurityConfig {
 
     @Bean
     SecurityFilterChain appChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        http.authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PathPatternRequestMatcher.withDefaults().matcher("/")).permitAll()
+                        .anyRequest().authenticated())
                 .formLogin(withDefaults());
         return http.build();
     }

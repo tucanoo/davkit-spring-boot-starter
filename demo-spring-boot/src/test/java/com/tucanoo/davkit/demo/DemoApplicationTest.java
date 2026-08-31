@@ -66,13 +66,12 @@ class DemoApplicationTest {
     }
 
     @Test
-    void indexRendersServerSideOfficeLink() throws Exception {
-        assertThat(send("GET", "/", null).uri().getPath()).as("app itself requires login").isEqualTo("/login");
-        login();
+    void indexRendersWorkingSignedOfficeLinksWithoutLogin() throws Exception {
         HttpResponse<byte[]> page = send("GET", "/", null);
         assertThat(page.statusCode()).isEqualTo(200);
-        assertThat(new String(page.body(), StandardCharsets.UTF_8))
-                .contains("Signed in as <b>dave</b>")
+        assertThat(page.uri().getPath()).as("document page does not require login").isEqualTo("/");
+        String html = new String(page.body(), StandardCharsets.UTF_8);
+        assertThat(html)
                 .contains("ms-word:ofe|u|http://localhost:" + port + "/webdav/t/")
                 .contains("/documents/Welcome%20letter.docx\"")
                 // The Excel and PowerPoint rows get their own scheme and label from the same table.
@@ -82,6 +81,13 @@ class DemoApplicationTest {
                 .contains("ms-powerpoint:ofe|u|http://localhost:" + port + "/webdav/t/")
                 .contains("/documents/Kickoff%20deck.pptx\"")
                 .contains(">Edit in PowerPoint</a>");
+
+        java.util.regex.Matcher editLink = java.util.regex.Pattern.compile("ms-word:ofe\\|u\\|([^\"]+)").matcher(html);
+        assertThat(editLink.find()).isTrue();
+        HttpResponse<byte[]> document = http.send(HttpRequest.newBuilder(URI.create(editLink.group(1))).GET().build(),
+                BodyHandlers.ofByteArray());
+        assertThat(document.statusCode()).as("signed link works without a login session").isEqualTo(200);
+        assertThat(document.body()).isEqualTo(documents.findByName("Welcome letter.docx").orElseThrow().getBytes());
     }
 
     /**
@@ -132,6 +138,10 @@ class DemoApplicationTest {
                 .isEqualTo("http://localhost:" + port + "/davkit/ofba/start");
         assertThat(handshake.headers().firstValue("X-FORMS_BASED_AUTH_RETURN_URL").orElseThrow())
                 .isEqualTo("http://localhost:" + port + "/davkit/ofba/done");
+
+        assertThat(send("GET", "/davkit/ofba/done", null).uri().getPath())
+                .as("OFBA return page stays protected even though the document page is public")
+                .isEqualTo("/login");
 
         // The dialog's journey: /start redirects into the login flow while unauthenticated…
         HttpResponse<byte[]> beforeLogin = send("GET", "/davkit/ofba/start", null);
