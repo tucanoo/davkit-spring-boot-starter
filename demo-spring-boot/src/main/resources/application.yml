@@ -27,4 +27,4 @@ logging:
   file:
     name: demo.log
   level:
-    com.tucanoo.davkit: DEBUG
+    com.tucanoo.davkit: INFO
