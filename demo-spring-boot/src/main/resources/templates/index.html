@@ -1,0 +1,33 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="utf-8"><title>DavKit demo</title>
+<style>body{font:15px system-ui;margin:2rem;max-width:60rem}table{border-collapse:collapse}td,th{padding:.4rem .8rem;border-bottom:1px solid #ddd;text-align:left}</style>
+</head>
+<body>
+<h1>DavKit demo</h1>
+<p>Each row is a document in the in-memory H2 database — a Word document, an Excel workbook and a
+PowerPoint deck, all served by the same provider (the server has no type-specific code; only the
+link scheme differs). Click <em>Edit in&hellip;</em>, enable editing, type, Ctrl+S — then click <em>Refresh</em>.
+Documents reset when the demo restarts.</p>
+<p><small>No sign-in is needed: <em>Edit in&hellip;</em> uses a signed URL
+(valid <span th:text="${ttl}">PT8H</span>). The optional <em>via OFBA (sign-in)</em> links
+test Office forms-based login (Windows only), using <code>dave</code> / <code>password</code>.</small></p>
+<p><small>The demo defaults to local HTTP. If Office refuses to open or save a document,
+try the optional HTTPS profile described in the README.</small></p>
+<button type="button" onclick="window.location.reload()">Refresh</button>
+<table>
+  <tr><th>Name</th><th>Size</th><th>Version</th><th>Updated</th><th></th></tr>
+  <tr th:each="r : ${rows}">
+    <td th:text="${r.doc.name}">name</td>
+    <td th:text="${r.doc.bytes.length}">0</td>
+    <td th:text="${r.doc.version}">0</td>
+    <td th:text="${r.doc.updatedAt}">when</td>
+    <td>
+      <a th:href="${r.editLink}" th:text="'Edit in ' + ${r.editor}">Edit in Office</a>
+      &middot; <a th:href="${r.ofbaLink}">via OFBA (sign-in)</a>
+      &middot; <a th:href="${r.url}">download</a>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

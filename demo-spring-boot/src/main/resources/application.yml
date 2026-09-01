@@ -1,0 +1,30 @@
+server:
+  # Local HTTP only by default; use the https profile for optional TLS (see README).
+  address: 127.0.0.1
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:davkit_demo;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # demo only: documents reset on restart
+    open-in-view: false
+
+davkit:
+  path: /webdav
+  # No key ships with this demo. Put your own in DEMO_LICENSE_KEY (free evaluation keys:
+  # https://tucanoo.com/products/davkit). Without one the app boots normally and /webdav answers 503
+  # with the reason - everything outside DavKit still works.
+  license-key: ${DEMO_LICENSE_KEY:}
+  auth:
+    ofba:
+      enabled: true   # dialog flow: /davkit/ofba/start (protected) -> /login -> back -> /done
+
+logging:
+  file:
+    name: demo.log
+  level:
+    com.tucanoo.davkit: INFO

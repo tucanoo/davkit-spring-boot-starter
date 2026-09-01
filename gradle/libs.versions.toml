@@ -1,0 +1,19 @@
+# Only what this repository's two modules need. The core's catalog lives in davkit-core.
+[versions]
+jakartaServlet = "6.0.0"
+springBoot3 = "3.5.15"
+# Match spring-security.version in the selected Spring Boot BOM.
+springSecurity = "6.5.11"
+junit = "5.11.4"
+assertj = "3.27.3"
+
+[libraries]
+jakarta-servlet = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakartaServlet" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "springBoot3" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot3" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot3" }
+spring-boot-test = { module = "org.springframework.boot:spring-boot-test", version.ref = "springBoot3" }
+spring-security-web = { module = "org.springframework.security:spring-security-web", version.ref = "springSecurity" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
