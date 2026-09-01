@@ -1,6 +1,6 @@
 # Contributing
 
-Report reproducible bugs in [GitHub issues](https://github.com/tucanoo/davkit-spring-boot/issues), or
+Report reproducible bugs in [GitHub issues](https://github.com/tucanoo/davkit-spring-boot-starter/issues), or
 send a pull request with the reason for the change and the checks you ran. Include the DavKit,
 Java and framework versions, expected behaviour, actual behaviour and a small reproducer.
 Use [SECURITY.md](SECURITY.md) for vulnerabilities; do not disclose them in public issues.

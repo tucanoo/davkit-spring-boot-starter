@@ -8,14 +8,14 @@ plugins {
 }
 
 // demo-spring-boot is a reference host, never published.
-val publishedModules = setOf("davkit-spring-boot")
+val publishedModules = setOf("davkit-spring-boot-starter")
 
 // Central rejects -SNAPSHOT on the release endpoint. The guard still runs on snapshots — that is
 // what keeps it exercised between releases — but the signature check switches on here.
 val isRelease = !version.toString().endsWith("-SNAPSHOT")
 
 val productUrl = "https://tucanoo.com/products/davkit"
-val repoUrl = "https://github.com/tucanoo/davkit-spring-boot"
+val repoUrl = "https://github.com/tucanoo/davkit-spring-boot-starter"
 val licenseName = "The Apache License, Version 2.0"
 
 allprojects {
@@ -74,8 +74,8 @@ subprojects {
                                 }
                             }
                             scm {
-                                connection.set("scm:git:https://github.com/tucanoo/davkit-spring-boot.git")
-                                developerConnection.set("scm:git:ssh://git@github.com/tucanoo/davkit-spring-boot.git")
+                                connection.set("scm:git:https://github.com/tucanoo/davkit-spring-boot-starter.git")
+                                developerConnection.set("scm:git:ssh://git@github.com/tucanoo/davkit-spring-boot-starter.git")
                                 url.set(repoUrl)
                             }
                             // The wrapper is Apache 2.0 but the core it depends on is not; say so
@@ -174,7 +174,7 @@ val verifyReleaseArtifacts by tasks.registering {
         val inventory = StringBuilder("DavKit Spring Boot starter release artifacts — version $versionString\n\n")
 
         val moduleDir = stagingDir.get().asFile
-            .resolve("com/tucanoo/davkit/davkit-spring-boot/$versionString")
+            .resolve("com/tucanoo/davkit/davkit-spring-boot-starter/$versionString")
         if (!moduleDir.isDirectory) {
             throw GradleException("No staged artifacts at $moduleDir — run stageRelease first.")
         }
@@ -270,7 +270,7 @@ val centralBundle by tasks.registering(Zip::class) {
     dependsOn(verifyReleaseArtifacts)
     // maven-metadata is a repository index, not a release artifact; the Portal builds its own.
     from(stagingRepoDir) { exclude("**/maven-metadata.xml*") }
-    archiveFileName.set("davkit-spring-boot-central-$version.zip")
+    archiveFileName.set("davkit-spring-boot-starter-central-$version.zip")
     destinationDirectory.set(layout.buildDirectory.dir("central"))
     doLast {
         logger.lifecycle("Upload bundle: ${archiveFile.get().asFile}")

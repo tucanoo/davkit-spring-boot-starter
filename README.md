@@ -1,4 +1,4 @@
-# davkit-spring-boot
+# davkit-spring-boot-starter
 
 The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit/). It registers
 DavKit's WebDAV servlet, authentication filters and `davkit.*` configuration properties.
@@ -7,15 +7,14 @@ The dependency coordinates for this checkout are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot:0.3.0-SNAPSHOT")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.10-beta.1")
 }
 ```
 
-This is prerelease source. The starter and its proprietary dependency,
-`com.tucanoo.davkit:davkit-server`, both use `0.3.0-SNAPSHOT`. The matching DavKit artifacts
-are not yet available from Maven Central. Before using the dependency or building from
-source, ask [dave@tucanoo.com](mailto:dave@tucanoo.com) about binary access and repository
-setup. A licence key alone does not supply the dependencies.
+This is a beta release. The starter and its proprietary dependency,
+`com.tucanoo.davkit:davkit-server`, both use `1.0.10-beta.1` and resolve from Maven Central.
+If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
+a licence key alone does not supply the dependencies.
 
 Request a key through the [evaluation form](https://tucanoo.com/products/davkit/#evaluation-form).
 The starter and demo source in this repository are licensed under [Apache 2.0](LICENSE).
@@ -49,7 +48,7 @@ checkout can use it as an optional composite build; Gradle detects that director
 substitutes its projects for Maven dependencies. See [CONTRIBUTING.md](CONTRIBUTING.md)
 for checks and the remaining public-release requirements.
 
-The `server-spring-boot` directory is Gradle project `:davkit-spring-boot` and produces
+The `server-spring-boot` directory is Gradle project `:davkit-spring-boot-starter` and produces
 the starter. `demo-spring-boot` is a host application and is not published.
 
 ## Wiring the starter into a host

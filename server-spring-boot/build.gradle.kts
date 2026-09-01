@@ -29,7 +29,7 @@ dependencies {
 }
 
 // Compile the same sources against Spring Boot 4 on every build, so a Boot 4 package
-// move fails here rather than at a customer's site. `./gradlew :davkit-spring-boot:compileBoot4`.
+// move fails here rather than at a customer's site. `./gradlew :davkit-spring-boot-starter:compileBoot4`.
 val boot4 by configurations.creating {
     extendsFrom(configurations.getByName("api"))
 }

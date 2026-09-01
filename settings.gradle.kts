@@ -1,4 +1,4 @@
-// Not "davkit-spring-boot": that name belongs to the published module below, and a root project
+// Not "davkit-spring-boot-starter": that name belongs to the published module below, and a root project
 // sharing a subproject's name makes task paths ambiguous. Same reasoning as davkit-grails-plugin.
 rootProject.name = "davkit-spring"
 
@@ -7,14 +7,14 @@ include(
     "demo-spring-boot",   // reference host; never published
 )
 
-// The directory keeps its role-name; the published coordinate is com.tucanoo.davkit:davkit-spring-boot
+// The directory keeps its role-name; the published coordinate is com.tucanoo.davkit:davkit-spring-boot-starter
 // (group from the root build, artifactId from here). Renamed 2026-08-29 with the core, before the
 // first Central release, so all three coordinates match their repository names.
 //
 // Renaming the Gradle project rather than only the publication's artifactId is deliberate: the
 // Grails repository includes this build as a composite and substitutes on the project's own
 // coordinates, so the two must agree.
-project(":server-spring-boot").name = "davkit-spring-boot"
+project(":server-spring-boot").name = "davkit-spring-boot-starter"
 
 // The proprietary core lives in its own repository. Use the sibling checkout when it is there so
 // a core change needs no publish step; otherwise the coordinate resolves from Maven like it does
