@@ -7,12 +7,12 @@ The dependency coordinates for this checkout are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.10-beta.1")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.10")
 }
 ```
 
-This is a beta release. The starter and its proprietary dependency,
-`com.tucanoo.davkit:davkit-server`, both use `1.0.10-beta.1` and resolve from Maven Central.
+DavKit 1.0.10 has exited beta. The starter and its proprietary dependency,
+`com.tucanoo.davkit:davkit-server`, both use `1.0.10` and resolve from Maven Central.
 If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
 a licence key alone does not supply the dependencies.
 
