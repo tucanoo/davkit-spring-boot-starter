@@ -98,6 +98,21 @@ A missing, invalid or expired licence key causes DavKit endpoints to return 503 
 Deploy at the container's root context. Office sends discovery requests to the origin's
 `/`, which an application mounted under a context path cannot receive.
 
+## Startup logging
+
+DavKit logs under `com.tucanoo.davkit`. To ensure you can see its startup summary, add this to your application's `application.yml`:
+
+```yaml
+logging:
+  level:
+    com.tucanoo.davkit: INFO
+```
+
+The `DavKit ready:` summary is logged at INFO and lists the WebDAV path, provider mounts,
+authentication, lock store and licence state. Missing, invalid or refused licence keys
+are logged at ERROR; the host application still starts, while DavKit endpoints return 503.
+The setting above also makes DavKit's WARN messages visible.
+
 ## Demo and reporting
 
 The [demo instructions](demo-spring-boot/README.md) use in-memory H2 and local HTTP, with no
