@@ -24,9 +24,14 @@ import com.tucanoo.davkit.spi.DavResource;
 import com.tucanoo.davkit.spi.DavResourceProvider;
 import com.tucanoo.davkit.spi.DavWriteRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +39,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
@@ -78,8 +84,45 @@ class DavKitAutoConfigurationTest {
             assertThat(ctx).doesNotHaveBean(DavServlet.class);
             assertThat(ctx).doesNotHaveBean(DavKitLicenseState.class);
             assertThat(ctx).doesNotHaveBean("davOfficeDiscoveryFilter");
+            assertThat(ctx).doesNotHaveBean("davKitStartupSummary");
             assertThat(ctx).doesNotHaveBean(HttpFirewall.class);
         });
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void rootServletContextsDoNotEmitAContextPathWarning(CapturedOutput output) {
+        for (String path : new String[]{"", "/"}) {
+            licensed().run(ctx -> {
+                assertThat(ctx).hasNotFailed();
+                ((MockServletContext) ctx.getServletContext()).setContextPath(path);
+                ctx.getBean("davKitStartupSummary", ApplicationRunner.class)
+                        .run(new DefaultApplicationArguments(new String[0]));
+            });
+        }
+
+        assertThat(output.getAll()).contains("DavKit ready:")
+                .doesNotContain("DavKit is deployed under servlet context");
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void nonRootServletContextEmitsOneWarningWithDeploymentGuidance(CapturedOutput output) {
+        licensed().run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx).hasSingleBean(DavServlet.class);
+            // A container can assign the WAR's path without any Boot context-path property.
+            ((MockServletContext) ctx.getServletContext()).setContextPath("/myapp");
+            ctx.getBean("davKitStartupSummary", ApplicationRunner.class)
+                    .run(new DefaultApplicationArguments(new String[0]));
+        });
+
+        List<String> warnings = output.getAll().lines()
+                .filter(line -> line.contains("DavKit is deployed under servlet context"))
+                .toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0)).contains("WARN", "/myapp", "Office", "origin's /", "Deploy at the root context");
+        assertThat(output.getAll()).contains("DavKit ready:");
     }
 
     @Test
