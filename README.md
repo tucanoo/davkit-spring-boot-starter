@@ -66,7 +66,14 @@ davkit:
 ```
 
 Set `davkit.enabled=false` to disable DavKit's servlet, filters, firewall and supporting
-beans without removing the dependency.
+beans without removing the dependency. The starter evaluates this switch as an
+auto-configuration condition, so it must be present in Spring's `Environment` when
+auto-configuration runs.
+Use normal [Spring Boot external configuration](https://docs.spring.io/spring-boot/3.5/reference/features/external-config.html),
+such as an external file selected with `spring.config.additional-location` at launch.
+If you need a custom configuration loader, use an `EnvironmentPostProcessor` to load it
+before the application context is refreshed. Loading configuration later in an Application
+bean's `setEnvironment()` does not re-evaluate the condition.
 
 If the host uses Spring Security, put `davkit.path` in its own chain with CSRF disabled
 and no redirect to form login. Office sends no CSRF token and cannot use a browser login
