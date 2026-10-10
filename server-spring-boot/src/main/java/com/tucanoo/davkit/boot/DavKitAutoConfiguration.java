@@ -21,6 +21,7 @@ import com.tucanoo.davkit.protocol.ProviderRegistry;
 import com.tucanoo.davkit.spi.DavEventListener;
 import com.tucanoo.davkit.spi.DavPrincipal;
 import com.tucanoo.davkit.spi.DavResourceProvider;
+import jakarta.servlet.ServletContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -405,8 +406,15 @@ public class DavKitAutoConfiguration {
      */
     @Bean
     ApplicationRunner davKitStartupSummary(DavKitProperties properties, ProviderRegistry registry,
-                                           DavLockStore lockStore, DavKitLicenseState licenseState) {
+                                           DavLockStore lockStore, DavKitLicenseState licenseState,
+                                           ServletContext servletContext) {
         return args -> {
+            String contextPath = servletContext.getContextPath();
+            if (!contextPath.isEmpty() && !"/".equals(contextPath)) {
+                LOG.warn("DavKit is deployed under servlet context '" + contextPath
+                        + "'. Office sends discovery requests to the origin's /, which this application cannot receive. "
+                        + "Deploy at the root context for Office editing.");
+            }
             LicenseGate licenseGate = licenseState.gate();
             DavKitProperties.Auth auth = properties.getAuth();
             List<String> authenticators = new ArrayList<>();

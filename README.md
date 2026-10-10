@@ -3,18 +3,20 @@
 The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit/). It registers
 DavKit's WebDAV servlet, authentication filters and `davkit.*` configuration properties.
 
-The dependency coordinates for this checkout are:
+The dependency coordinates are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.10")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.11")
 }
 ```
 
-DavKit 1.0.10 has exited beta. The starter and its proprietary dependency,
-`com.tucanoo.davkit:davkit-server`, both use `1.0.10` and resolve from Maven Central.
+The starter and its proprietary dependency, `com.tucanoo.davkit:davkit-server`,
+both use `1.0.11` and resolve from Maven Central.
 If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
 a licence key alone does not supply the dependencies.
+
+See [CHANGELOG.md](CHANGELOG.md) for the changes in each release.
 
 Request a key through the [evaluation form](https://tucanoo.com/products/davkit/#evaluation-form).
 The starter and demo source in this repository are licensed under [Apache 2.0](LICENSE).
@@ -66,7 +68,14 @@ davkit:
 ```
 
 Set `davkit.enabled=false` to disable DavKit's servlet, filters, firewall and supporting
-beans without removing the dependency.
+beans without removing the dependency. The starter evaluates this switch as an
+auto-configuration condition, so it must be present in Spring's `Environment` when
+auto-configuration runs.
+Use normal [Spring Boot external configuration](https://docs.spring.io/spring-boot/3.5/reference/features/external-config.html),
+such as an external file selected with `spring.config.additional-location` at launch.
+If you need a custom configuration loader, use an `EnvironmentPostProcessor` to load it
+before the application context is refreshed. Loading configuration later in an Application
+bean's `setEnvironment()` does not re-evaluate the condition.
 
 If the host uses Spring Security, put `davkit.path` in its own chain with CSRF disabled
 and no redirect to form login. Office sends no CSRF token and cannot use a browser login
@@ -93,10 +102,47 @@ Keep them out of logs and public pages. Installations sharing an OEM licence der
 same signing key; configure distinct `davkit.signed-url.keys` maps when installations
 must not trust one another's URLs.
 
+`SignedUrls.path` accepts a `Duration` for an
+individual link. Use the starter's injected `SignedUrls` bean and a trusted authenticated
+user ID:
+
+```java
+import com.tucanoo.davkit.auth.SignedUrls;
+import java.time.Duration;
+
+// signedUrls is the injected SignedUrls bean; userId is the authenticated user ID.
+String path = signedUrls.path(userId, "documents/Report.docx", Duration.ofMinutes(30));
+```
+
+The result is a tokenised, percent-encoded path; prepend your public origin to build the URL.
+This call leaves the configured `davkit.signed-url.ttl` unchanged. The two-argument
+`path(userId, documentPath)` continues to use that default, which is eight hours unless configured.
+
+Choose a validity period that covers the entire editing session, including LOCK refreshes
+and PUT/save-back. Expiry is checked on each request; a document opened before expiry can
+still fail to save afterwards.
+
 A missing, invalid or expired licence key causes DavKit endpoints to return 503 with the reason.
 
 Deploy at the container's root context. Office sends discovery requests to the origin's
 `/`, which an application mounted under a context path cannot receive.
+The starter logs a WARN at startup when the actual servlet
+context is not the root context, including container-assigned WAR context paths.
+
+## Startup logging
+
+DavKit logs under `com.tucanoo.davkit`. To ensure you can see its startup summary, add this to your application's `application.yml`:
+
+```yaml
+logging:
+  level:
+    com.tucanoo.davkit: INFO
+```
+
+The `DavKit ready:` summary is logged at INFO and lists the WebDAV path, provider mounts,
+authentication, lock store and licence state. Missing, invalid or refused licence keys
+are logged at ERROR; the host application still starts, while DavKit endpoints return 503.
+The setting above also makes DavKit's WARN messages visible.
 
 ## Demo and reporting
 
