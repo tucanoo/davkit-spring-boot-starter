@@ -15,8 +15,9 @@ development machine; do not expose it to the internet or use it for sensitive do
 
 Start in the `davkit-spring-boot-starter` repository root, not this module directory. You need Java 17,
 desktop Office for a manual edit test, and the matching DavKit binary dependencies described
-in the [repository README](../README.md). The `1.0.10` DavKit binaries resolve from
-Maven Central. No Docker, separate database, mkcert or `.p12` file is needed.
+in the [repository README](../README.md). Use matching `1.0.11` core binaries from
+Maven Central or Maven Local, or an authorised sibling core checkout.
+No Docker, separate database, mkcert or `.p12` file is needed.
 
 Request a licence key through the [evaluation form](https://tucanoo.com/products/davkit/#evaluation-form).
 No key is included. Set `DEMO_LICENSE_KEY` in your local environment before starting the demo.

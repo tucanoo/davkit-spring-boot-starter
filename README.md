@@ -3,18 +3,20 @@
 The Spring Boot starter for [DavKit](https://tucanoo.com/products/davkit/). It registers
 DavKit's WebDAV servlet, authentication filters and `davkit.*` configuration properties.
 
-The dependency coordinates for this checkout are:
+The dependency coordinates are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.10")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.11")
 }
 ```
 
-DavKit 1.0.10 has exited beta. The starter and its proprietary dependency,
-`com.tucanoo.davkit:davkit-server`, both use `1.0.10` and resolve from Maven Central.
+The starter and its proprietary dependency, `com.tucanoo.davkit:davkit-server`,
+both use `1.0.11` and resolve from Maven Central.
 If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
 a licence key alone does not supply the dependencies.
+
+See [CHANGELOG.md](CHANGELOG.md) for the changes in each release.
 
 Request a key through the [evaluation form](https://tucanoo.com/products/davkit/#evaluation-form).
 The starter and demo source in this repository are licensed under [Apache 2.0](LICENSE).
@@ -100,7 +102,7 @@ Keep them out of logs and public pages. Installations sharing an OEM licence der
 same signing key; configure distinct `davkit.signed-url.keys` maps when installations
 must not trust one another's URLs.
 
-**Unreleased; unavailable in 1.0.10:** `SignedUrls.path` accepts a `Duration` for an
+`SignedUrls.path` accepts a `Duration` for an
 individual link. Use the starter's injected `SignedUrls` bean and a trusted authenticated
 user ID:
 
@@ -124,6 +126,8 @@ A missing, invalid or expired licence key causes DavKit endpoints to return 503 
 
 Deploy at the container's root context. Office sends discovery requests to the origin's
 `/`, which an application mounted under a context path cannot receive.
+The starter logs a WARN at startup when the actual servlet
+context is not the root context, including container-assigned WAR context paths.
 
 ## Startup logging
 
