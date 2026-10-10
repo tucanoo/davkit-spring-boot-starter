@@ -100,6 +100,26 @@ Keep them out of logs and public pages. Installations sharing an OEM licence der
 same signing key; configure distinct `davkit.signed-url.keys` maps when installations
 must not trust one another's URLs.
 
+**Unreleased; unavailable in 1.0.10:** `SignedUrls.path` accepts a `Duration` for an
+individual link. Use the starter's injected `SignedUrls` bean and a trusted authenticated
+user ID:
+
+```java
+import com.tucanoo.davkit.auth.SignedUrls;
+import java.time.Duration;
+
+// signedUrls is the injected SignedUrls bean; userId is the authenticated user ID.
+String path = signedUrls.path(userId, "documents/Report.docx", Duration.ofMinutes(30));
+```
+
+The result is a tokenised, percent-encoded path; prepend your public origin to build the URL.
+This call leaves the configured `davkit.signed-url.ttl` unchanged. The two-argument
+`path(userId, documentPath)` continues to use that default, which is eight hours unless configured.
+
+Choose a validity period that covers the entire editing session, including LOCK refreshes
+and PUT/save-back. Expiry is checked on each request; a document opened before expiry can
+still fail to save afterwards.
+
 A missing, invalid or expired licence key causes DavKit endpoints to return 503 with the reason.
 
 Deploy at the container's root context. Office sends discovery requests to the origin's
