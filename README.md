@@ -7,12 +7,12 @@ The dependency coordinates are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.11")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.12")
 }
 ```
 
 The starter and its proprietary dependency, `com.tucanoo.davkit:davkit-server`,
-both use `1.0.11` and resolve from Maven Central.
+both use `1.0.12` and resolve from Maven Central.
 If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
 a licence key alone does not supply the dependencies.
 
@@ -90,6 +90,21 @@ to its own document pages and signed links.
 `OPTIONS` and `PROPFIND` probes reach it before a login redirect. When Spring Security is
 present and the host has no firewall bean, the starter contributes a `StrictHttpFirewall`
 that allows WebDAV methods. A custom firewall must allow those methods too.
+
+The discovery filter is enabled by default on `/*` across the entire application context;
+`davkit.path` only sets the WebDAV endpoint. At the root context this covers the whole host.
+Requests under `davkit.path` pass through. Outside it, Office root OPTIONS/HEAD/PROPFIND get
+DAV discovery responses and those methods at other paths get empty 404s. SharePoint/FrontPage
+paths (`/_api`, `/_api/…`, paths containing `/_vti_`, and the `/_layouts/`, `/_catalog/`,
+`/hosting/` prefixes) get stubs or clean 404s for all user agents and methods.
+
+Since 1.0.12, other methods, including Office GET/POST to application pages and Outlook email
+images, continue through the application and its normal security filters. Known discovery
+paths still intercept GET/POST. HEAD handling is unchanged: Office HEAD outside the DAV path
+and application root still returns 404 even when the application's GET succeeds.
+`davkit.office.discovery-filter=false` disables the entire filter, allowing Word's root probes
+to reach host security and potentially a login redirect. `davkit.office.share-point-stubs=false`
+changes `/_api` stubs to clean 404s; it does not pass those paths through.
 
 `davkit.auth.required` defaults to `true`. Signed URLs use a key derived from the validated
 licence and expire after eight hours by default. Configured OFBA and Basic authentication
