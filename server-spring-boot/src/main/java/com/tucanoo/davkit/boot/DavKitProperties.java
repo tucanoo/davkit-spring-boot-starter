@@ -53,7 +53,7 @@ public class DavKitProperties {
     }
 
     public static class Office {
-        /** Register the root-level Office discovery filter ahead of Spring Security. */
+        /** Register the application-wide Office discovery filter ahead of Spring Security. */
         private boolean discoveryFilter = true;
         /** Answer the SharePoint {@code /_api/} stubs (GetSharingInformation etc.). */
         private boolean sharePointStubs = true;
