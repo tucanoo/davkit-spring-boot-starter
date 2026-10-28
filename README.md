@@ -7,12 +7,12 @@ The dependency coordinates are:
 
 ```kotlin
 dependencies {
-    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.12")
+    implementation("com.tucanoo.davkit:davkit-spring-boot-starter:1.0.13")
 }
 ```
 
 The starter and its proprietary dependency, `com.tucanoo.davkit:davkit-server`,
-both use `1.0.12` and resolve from Maven Central.
+both use `1.0.13` and resolve from Maven Central.
 If the coordinates do not resolve for you, ask [dave@tucanoo.com](mailto:dave@tucanoo.com);
 a licence key alone does not supply the dependencies.
 
@@ -91,17 +91,19 @@ to its own document pages and signed links.
 present and the host has no firewall bean, the starter contributes a `StrictHttpFirewall`
 that allows WebDAV methods. A custom firewall must allow those methods too.
 
-The discovery filter is enabled by default on `/*` across the entire application context;
-`davkit.path` only sets the WebDAV endpoint. At the root context this covers the whole host.
-Requests under `davkit.path` pass through. Outside it, Office root OPTIONS/HEAD/PROPFIND get
-DAV discovery responses and those methods at other paths get empty 404s. SharePoint/FrontPage
-paths (`/_api`, `/_api/…`, paths containing `/_vti_`, and the `/_layouts/`, `/_catalog/`,
-`/hosting/` prefixes) get stubs or clean 404s for all user agents and methods.
+The starter enables its Office discovery filter on `/*` across the entire application
+context, independently of `davkit.path` (default `/webdav`). Root-context deployment therefore
+covers the whole host. Requests under `davkit.path` pass through. Outside it, the filter handles
+Office root OPTIONS/HEAD/PROPFIND and SharePoint/FrontPage locations (`/_api`, `/_api/…`, paths
+containing `/_vti_`, and the `/_layouts/`, `/_catalog/`, `/hosting/` prefixes). Those path-based
+handlers retain their stubs or clean 404s for all user agents and methods, including GET/POST.
 
-Since 1.0.12, other methods, including Office GET/POST to application pages and Outlook email
-images, continue through the application and its normal security filters. Known discovery
-paths still intercept GET/POST. HEAD handling is unchanged: Office HEAD outside the DAV path
-and application root still returns 404 even when the application's GET succeeds.
+Every other request passes through the application and its normal security filters, regardless
+of method or user agent. In 1.0.13 there is no final catch-all: Outlook OPTIONS requests to a
+link's parent folder and HEAD requests to the linked resource receive the host's normal
+responses, as do Office GET/POST requests and email image fetches. The host controls resource
+metadata, allowed methods, authentication and redirects; DavKit adds no DAV headers there.
+
 `davkit.office.discovery-filter=false` disables the entire filter, allowing Word's root probes
 to reach host security and potentially a login redirect. `davkit.office.share-point-stubs=false`
 changes `/_api` stubs to clean 404s; it does not pass those paths through.

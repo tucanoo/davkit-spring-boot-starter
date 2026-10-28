@@ -2,6 +2,13 @@
 
 DavKit components use the same exact version and release together.
 
+## 1.0.13 — 2026-10-28
+
+- Updated the core dependency to 1.0.13, removing the final discovery catch-all so Outlook
+  OPTIONS/HEAD link probes reach the host application. Root and SharePoint discovery remain.
+- Added real HTTP regressions for application OPTIONS responses, public document HEAD
+  metadata and host security handling; revised the discovery-scope documentation.
+
 ## 1.0.12 — 2026-10-27
 
 - Updated the core dependency to 1.0.12, fixing empty 404 responses for ordinary Office
