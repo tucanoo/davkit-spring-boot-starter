@@ -11,8 +11,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
@@ -28,6 +30,8 @@ import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.web.servlet.function.RequestPredicates.GET;
+import static org.springframework.web.servlet.function.RequestPredicates.method;
+import static org.springframework.web.servlet.function.RequestPredicates.path;
 import static org.springframework.web.servlet.function.RouterFunctions.route;
 
 /** Exercises the discovery filter before the real Spring Security chain and embedded Tomcat. */
@@ -37,6 +41,8 @@ class OfficeDiscoveryApplicationTest {
 
     private static final String OUTLOOK_UA =
             "Microsoft Office/16.0 (Windows NT 10.0; Microsoft Outlook 16.0.17928; Pro)";
+    private static final String OUTLOOK_LINK_UA = "Microsoft Office Outlook 2014";
+    private static final byte[] DOCUMENT = "Public document".getBytes(StandardCharsets.UTF_8);
     private static final byte[] IMAGE = Base64.getDecoder().decode(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aOZkAAAAASUVORK5CYII=");
 
@@ -95,17 +101,47 @@ class OfficeDiscoveryApplicationTest {
         assertThat(loginWithoutCsrf.statusCode()).isEqualTo(403);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {OUTLOOK_LINK_UA, "Mozilla/4.0 (compatible; ms-office; MSOffice 16)",
+            "Microsoft Office Word 2014"})
+    void officeLinkProbesReceiveTheApplicationsNormalResponses(String userAgent) throws Exception {
+        HttpResponse<byte[]> options = send("OPTIONS", "/public/document/", userAgent);
+        assertThat(options.statusCode()).isEqualTo(204);
+        assertThat(options.headers().firstValue("Allow")).contains("GET, HEAD, OPTIONS");
+        assertThat(options.headers().firstValue("DAV")).isEmpty();
+
+        HttpResponse<byte[]> get = send("GET", "/public/document/_123", userAgent);
+        assertThat(get.statusCode()).isEqualTo(200);
+        assertThat(get.body()).isEqualTo(DOCUMENT);
+        HttpResponse<byte[]> head = send("HEAD", "/public/document/_123", userAgent);
+        assertThat(head.statusCode()).isEqualTo(200);
+        assertThat(head.body()).isEmpty();
+        assertThat(head.headers().firstValue("Content-Length")).contains(Integer.toString(DOCUMENT.length));
+        assertThat(head.headers().firstValue("Content-Type")).isEqualTo(get.headers().firstValue("Content-Type"));
+        assertThat(head.headers().firstValue("ETag")).contains("\"public-document-v1\"");
+        assertThat(head.headers().firstValue("DAV")).isEmpty();
+    }
+
+    @Test
+    void nonRootOfficeProbesStillReachHostSecurity() throws Exception {
+        for (String method : new String[]{"OPTIONS", "HEAD", "PROPFIND"}) {
+            HttpResponse<byte[]> browser = send(method, "/davkit/ofba/start", "Mozilla/5.0");
+            assertThat(browser.statusCode()).as(method).isEqualTo(302);
+            HttpResponse<byte[]> office = send(method, "/davkit/ofba/start", OUTLOOK_LINK_UA);
+            assertThat(office.statusCode()).as(method).isEqualTo(browser.statusCode());
+            // A new anonymous session may be URL-encoded in the container's first redirect.
+            assertThat(office.headers().firstValue("Location").orElseThrow().split(";")[0]).as(method)
+                    .isEqualTo(browser.headers().firstValue("Location").orElseThrow().split(";")[0]);
+            assertThat(office.headers().firstValue("DAV")).as(method).isEmpty();
+        }
+    }
+
     @Test
     void discoveryStillTerminatesBeforeHostSecurity() throws Exception {
         for (String method : new String[]{"OPTIONS", "HEAD", "PROPFIND"}) {
             HttpResponse<byte[]> root = send(method, "/", OUTLOOK_UA);
             assertThat(root.statusCode()).as(method).isEqualTo(method.equals("PROPFIND") ? 207 : 200);
             assertThat(root.headers().firstValue("DAV")).as(method).contains("1, 2");
-
-            HttpResponse<byte[]> nonRoot = send(method, "/davkit/ofba/start", OUTLOOK_UA);
-            assertThat(nonRoot.statusCode()).as(method).isEqualTo(404);
-            assertThat(nonRoot.body()).as(method).isEmpty();
-            assertThat(nonRoot.headers().firstValue("Location")).as(method).isEmpty();
         }
 
         assertThat(send("GET", "/_vti_inf.html", OUTLOOK_UA).statusCode()).isEqualTo(404);
@@ -119,7 +155,9 @@ class OfficeDiscoveryApplicationTest {
         @Bean
         @Order(-1)
         SecurityFilterChain imageSecurityChain(HttpSecurity http) throws Exception {
-            http.securityMatcher(PathPatternRequestMatcher.withDefaults().matcher("/test-images/**"))
+            http.securityMatcher(new OrRequestMatcher(
+                            PathPatternRequestMatcher.withDefaults().matcher("/test-images/**"),
+                            PathPatternRequestMatcher.withDefaults().matcher("/public/document/**")))
                     .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
             return http.build();
         }
@@ -127,7 +165,15 @@ class OfficeDiscoveryApplicationTest {
         @Bean
         RouterFunction<ServerResponse> imageRoute() {
             return route(GET("/test-images/mail.png"),
-                    request -> ServerResponse.ok().contentType(MediaType.IMAGE_PNG).body(IMAGE));
+                    request -> ServerResponse.ok().contentType(MediaType.IMAGE_PNG).body(IMAGE))
+                    .andRoute(method(HttpMethod.OPTIONS).and(path("/public/document/")),
+                            request -> ServerResponse.noContent().header("Allow", "GET, HEAD, OPTIONS").build())
+                    .andRoute(GET("/public/document/_123"), request -> ServerResponse.ok()
+                            .contentType(MediaType.TEXT_PLAIN).contentLength(DOCUMENT.length)
+                            .eTag("public-document-v1").body(DOCUMENT))
+                    .andRoute(method(HttpMethod.HEAD).and(path("/public/document/_123")),
+                            request -> ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
+                                    .contentLength(DOCUMENT.length).eTag("public-document-v1").build());
         }
     }
 }
